@@ -8,7 +8,6 @@ class FlzPuSetting extends FlzWpdbObject {
 	public string $value;
 
 	public function __construct(array $data ) {
-		//write_log("in construct");
 		parent::__construct($data['id']??null);
 		$this->name  = $data['name'];
 		$this->value = $data['value'];
@@ -23,7 +22,6 @@ class FlzPuSetting extends FlzWpdbObject {
 
 	protected static function afterCreate(): void {
 		//insert defaults
-		//write_log("in afterCreate");
 		$setting=new FlzPuSetting(array('name'=>"MaxTeilnehmerProSchule", 'value'=>"8"));
 		$setting->save();
 		$setting=new FlzPuSetting(array('name'=>"MaxTeilnehmerGesamt", 'value'=>"180"));
@@ -31,9 +29,9 @@ class FlzPuSetting extends FlzWpdbObject {
 
 	}
 	public static function get_value_by_name( string $name ): string {
-		global $wpdb;
-		$setting = $wpdb->get_row( "SELECT * FROM " . static::table_name() . " WHERE name = '$name'" );
-		return $setting->value;
+		$setting = static::get_by_fields( [ 'name' => sanitize_text_field( $name ) ] );
+
+		return $setting === null ? '' : (string) $setting->value;
 	}
 
 	protected function prepareDataForSaving(): array {

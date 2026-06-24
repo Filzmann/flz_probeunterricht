@@ -56,7 +56,6 @@ function flzpu_schools_page(): void {
             echo implode(";",$line)."\n";
         echo"</textarea>";
     }
-	//debug($_POST);
 	if ( isset( $_POST['school_edit'] ) ) {
 		$school_id       = intval( $_POST['school_id'] );
 		$selected_school = FlzPuSchool::get_by_id( $school_id );
@@ -128,7 +127,10 @@ function flzpu_participants_page(): void {
 		}
 		unset($participant_save_post['school_id']);
 		$participant_save=$participant_save_post['id']?FlzPuParticipant::get_by_id(intval($participant_save_post['id'])):new FlzPuParticipant([]);
-		$participant_save->assignPostData($participant_save_post);
+		$participant_save->assignPostData(
+			$participant_save_post,
+			[ 'name', 'firstName', 'email', 'class', 'lunch' ]
+		);
 		$participant_save->school=$school;
 		$participant_save->save();
 
@@ -143,8 +145,6 @@ function flzpu_participants_page(): void {
 		'name'            => 'Bitte Grundschule auswählen',
 		'available_seats' => 0
 	] ) );
-	//debug($participants);
-
 	// CSV-Download-Link
 	$csv_data = array();
 	foreach ( $participants as $participant ) {

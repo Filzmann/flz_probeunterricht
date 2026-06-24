@@ -53,15 +53,11 @@ class FlzPuParticipant extends FlzPerson{
 
 	public static function reset( int $new_available_seats = 8 ): void {
 		FlzPuParticipant::truncate_table();
-		global $wpdb;
-		$wpdb->query( "TRUNCATE TABLE " . FlzPuParticipant::table_name() ); // Alle Teilnehmer löschen
 		$schools = FlzPuSchool::get_all_by();
-
-	}
-	public static function afterTruncate(): void {
-		$schools=FlzPuSchool::get_all_by();
-		foreach($schools as $school)
-			$school->available_seats=8;
+		foreach ( $schools as $school ) {
+			$school->available_seats = max( 0, $new_available_seats );
+			$school->save();
+		}
 	}
 
 	public function generate_activation_link(): string {

@@ -2,8 +2,6 @@
 
 function flzpu_probeunterricht_form($atts)
 {
-    //debug($_POST);
-	//exit;
 	$out = "";
     $atts = shortcode_atts(
         array(
@@ -26,7 +24,10 @@ function flzpu_probeunterricht_form($atts)
 
         unset($participant_post['school_id']);
         $participant=new FlzPuParticipant([]);
-        $participant->assignPostData($participant_post);
+		$participant->assignPostData(
+			$participant_post,
+			[ 'name', 'firstName', 'email', 'class', 'lunch' ]
+		);
 		$participant->school=$school;
 		$school->take_seat();
 		$participant->save();
