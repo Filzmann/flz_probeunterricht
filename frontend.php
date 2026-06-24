@@ -49,11 +49,11 @@ function flzpu_probeunterricht_form($atts)
 
 
 
-    $max_reached= (int) FlzPuSetting::get_value_by_name("MaxTeilnehmerGesamt") - FlzPuParticipant::count() <= 0;
+	$max_reached= (int) FlzPuSetting::get_value_by_name("MaxTeilnehmerGesamt") - FlzPuParticipant::count_by() <= 0;
 
 
     ob_start();
-    $schools = FlzPuSchool::get_all(order_by: "name");
+	$schools = FlzPuSchool::get_all_by( order_by: 'name' );
     echo $out;
     include(plugin_dir_path(__FILE__) . 'templates/frontend-form.php');
     return ob_get_clean();

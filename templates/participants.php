@@ -2,7 +2,7 @@
     <div style="width: 55%; display: inline-block; vertical-align: top; text-align: start;">
         <h1>Teilnehmer bearbeiten (Anzahl:
 
-			<?php echo FlzPuParticipant::count(); ?>)</h1>
+			<?php echo esc_html( FlzPuParticipant::count_by() ); ?>)</h1>
 
         <table>
             <tr>
@@ -97,5 +97,3 @@
         </form>
     </div>
 </div>
-
-

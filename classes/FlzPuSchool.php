@@ -54,11 +54,9 @@ class FlzPuSchool extends FlzWpdbObject {
 		$this->available_seats = $data['available_seats']??null;
 	}
 
-    public static function get_by_name(string $name)
-    {
-        $schools = static::get_all(where: "name='$name'");
-        return $schools[0];
-    }
+	public static function get_by_name( string $name ): object|null {
+		return static::get_by_fields( [ 'name' => sanitize_text_field( $name ) ] );
+	}
 
 	protected static function get_table_schema(): string {
 		return "(
@@ -78,7 +76,7 @@ class FlzPuSchool extends FlzWpdbObject {
 
 	protected static function afterCreate(): void {
 		//insert defaults
-		if ( FlzPuSchool::count() == 0 ) {
+		if ( FlzPuSchool::count_by() == 0 ) {
 			foreach ( FlzPuSchool::example_schools as $example_school ) {
 				$school=new FlzPuSchool(array(
 					'name'     => $example_school,
@@ -103,7 +101,7 @@ class FlzPuSchool extends FlzWpdbObject {
 
     public static function get_csv_link():string{
         // CSV-Download-Link
-        $schools=static::get_all(order_by: 'name');
+		$schools=static::get_all_by( order_by: 'name' );
 
 
         $csv_data = array();

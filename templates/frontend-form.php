@@ -34,6 +34,4 @@
 
     <button type="submit" name="submit">Absenden</button>
 </form>
-<p>Es gibt aktuell <?php echo FlzPuParticipant::count();?> von maximal <?php echo FlzPuSetting::get_value_by_name("MaxTeilnehmerGesamt") ?> registrierte bzw. vorgemerkte Teilnehmer:innen.</p>
-
-
+<p>Es gibt aktuell <?php echo esc_html( FlzPuParticipant::count_by() ); ?> von maximal <?php echo esc_html( FlzPuSetting::get_value_by_name( 'MaxTeilnehmerGesamt' ) ); ?> registrierte bzw. vorgemerkte Teilnehmer:innen.</p>

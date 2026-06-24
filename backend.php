@@ -39,7 +39,7 @@ function flzpu_settings_page(): void {
 			$setting->save();
 		}
 	}
-	$settings = FlzPuSetting::get_all();
+	$settings = FlzPuSetting::get_all_by();
 	include( plugin_dir_path( __FILE__ ) . 'templates/settings.php' );
 }
 
@@ -88,7 +88,7 @@ function flzpu_schools_page(): void {
 
 
 
-	$schools = FlzPuSchool::get_all(order_by: "name");
+	$schools = FlzPuSchool::get_all_by( order_by: 'name' );
 	include( plugin_dir_path( __FILE__ ) . 'templates/schools.php' );
 }
 
@@ -136,8 +136,8 @@ function flzpu_participants_page(): void {
 
 
 	// Anzeige der Teilnehmer-Tabelle
-	$participants = FlzPuParticipant::get_all(order_by: "name");
-	$schools      = FlzPuSchool::get_all(order_by: "name");
+	$participants = FlzPuParticipant::get_all_by( order_by: 'name' );
+	$schools      = FlzPuSchool::get_all_by( order_by: 'name' );
 	array_unshift( $schools, new FlzPuSchool( [
 		'id'              => 9999,
 		'name'            => 'Bitte Grundschule auswählen',

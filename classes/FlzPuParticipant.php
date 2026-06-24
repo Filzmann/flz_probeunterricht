@@ -55,11 +55,11 @@ class FlzPuParticipant extends FlzPerson{
 		FlzPuParticipant::truncate_table();
 		global $wpdb;
 		$wpdb->query( "TRUNCATE TABLE " . FlzPuParticipant::table_name() ); // Alle Teilnehmer löschen
-		$schools = FlzPuSchool::get_all();
+		$schools = FlzPuSchool::get_all_by();
 
 	}
 	public static function afterTruncate(): void {
-		$schools=FlzPuSchool::get_all();
+		$schools=FlzPuSchool::get_all_by();
 		foreach($schools as $school)
 			$school->available_seats=8;
 	}
