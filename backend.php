@@ -1,5 +1,10 @@
 <?php
 
+// Exception-Texte sind interne Logdaten; HTML-Escaping erfolgt erst an der UI-Grenze.
+// phpcs:disable WordPress.Security.EscapeOutput.ExceptionNotEscaped
+// Alle POST-Pfade laufen durch flzpu_assert_admin_request(); der Sniff erkennt die zentrale Nonce-Prüfung nicht.
+// phpcs:disable WordPress.Security.NonceVerification.Missing
+
 // Funktion zur Erstellung des Backend-Menüs
 function flzpu_probeunterricht_menu(): void {
 	add_menu_page(
@@ -30,15 +35,32 @@ function flzpu_probeunterricht_menu(): void {
 
 // Funktion zur Anzeige der Schulen-Seite im Backend
 function flzpu_settings_page(): void {
+	try {
+		flzpu_settings_page_content();
+	} catch ( Throwable $error ) {
+		flzpu_render_admin_error( $error, 'Anzeigen der Probeunterrichts-Einstellungen' );
+	}
+}
+
+function flzpu_settings_page_content(): void {
+	flzpu_assert_admin_request();
 
 	if ( isset( $_POST['settings'] ) ) {
-		foreach ( $_POST['settings'] as $id => $value ) {
-			$value          = sanitize_text_field( $value );
-			$setting        = FlzPuSetting::get_by_id( $id );
-			$setting->value = $value;
-			$setting->save();
+			$posted_settings = map_deep( wp_unslash( $_POST['settings'] ), 'sanitize_text_field' );
+			flz_wpdb_objects\FlzWpdbTransaction::run(
+				static function () use ( $posted_settings ): void {
+					foreach ( (array) $posted_settings as $id => $value ) {
+						$setting = FlzPuSetting::get_by_id( absint( $id ) );
+						if ( ! $setting instanceof FlzPuSetting ) {
+							throw new UnexpectedValueException( 'Eine zu speichernde Einstellung wurde nicht gefunden.' );
+						}
+						$setting->value = $value;
+						$setting->save();
+					}
+				},
+				'Speichern der Probeunterrichts-Einstellungen'
+			);
 		}
-	}
 	$settings = FlzPuSetting::get_all_by();
 	include( plugin_dir_path( __FILE__ ) . 'templates/settings.php' );
 }
@@ -46,28 +68,43 @@ function flzpu_settings_page(): void {
 
 // Funktion zur Anzeige der Schulen-Seite im Backend
 function flzpu_schools_page(): void {
+	try {
+		flzpu_schools_page_content();
+	} catch ( Throwable $error ) {
+		flzpu_render_admin_error( $error, 'Anzeigen und Verarbeiten der Grundschulen' );
+	}
+}
+
+function flzpu_schools_page_content(): void {
+	flzpu_assert_admin_request();
 
     $unprocessed=processSchoolsCsvFile();
-    if($unprocessed)
-    {
-        echo "Folgende Datensätze konnten nicht verarbeitet werden:<br>";
-        echo"<textarea cols='100' rows='5'>";
-        foreach ($unprocessed as $line)
-            echo implode(";",$line)."\n";
-        echo"</textarea>";
+	    if($unprocessed)
+	    {
+	        echo "Folgende Datensätze konnten nicht verarbeitet werden:<br>";
+	        echo"<textarea cols='100' rows='5'>";
+	        foreach ($unprocessed as $line) {
+	            echo esc_textarea( implode( ';', $line ) . "\n" );
+	        }
+	        echo"</textarea>";
     }
 	if ( isset( $_POST['school_edit'] ) ) {
-		$school_id       = intval( $_POST['school_id'] );
-		$selected_school = FlzPuSchool::get_by_id( $school_id );
+			$school_id       = isset( $_POST['school_id'] ) ? absint( wp_unslash( $_POST['school_id'] ) ) : 0;
+			$selected_school = FlzPuSchool::get_by_id( $school_id );
+			if ( ! $selected_school instanceof FlzPuSchool ) {
+				throw new UnexpectedValueException( 'Die zu bearbeitende Grundschule wurde nicht gefunden.' );
+			}
 	} else {
 		$selected_school = new FlzPuSchool( [] );
 	}
 	if ( isset( $_POST['school_submit'] ) ) {
-		$name            = sanitize_text_field( $_POST['name'] );
-		$available_seats = intval( $_POST['available_seats'] );
+			$name = isset( $_POST['name'] ) ? sanitize_text_field( wp_unslash( $_POST['name'] ) ) : '';
+			$available_seats = isset( $_POST['available_seats'] ) ? intval( wp_unslash( $_POST['available_seats'] ) ) : 0;
 
 		if ( ! empty( $name ) ) {
-			$school_id = $_POST['school_id'] ? intval( $_POST['school_id'] ) : null;
+				$school_id = isset( $_POST['school_id'] ) && $_POST['school_id'] !== ''
+					? absint( wp_unslash( $_POST['school_id'] ) )
+					: null;
 			$school    = new FlzPuSchool( array(
 				'name'            => $name,
 				'available_seats' => $available_seats,
@@ -78,8 +115,11 @@ function flzpu_schools_page(): void {
 
 	}
 	if ( isset( $_POST['school_delete'] ) ) {
-		$school_id = intval( $_POST['school_delete'] );
-		$school    = FlzPuSchool::get_by_id( $school_id );
+			$school_id = absint( wp_unslash( $_POST['school_delete'] ) );
+			$school    = FlzPuSchool::get_by_id( $school_id );
+			if ( ! $school instanceof FlzPuSchool ) {
+				throw new UnexpectedValueException( 'Die zu löschende Grundschule wurde nicht gefunden.' );
+			}
 		$school->delete();
 	}
 
@@ -93,19 +133,34 @@ function flzpu_schools_page(): void {
 
 // Funktion zur Anzeige der Teilnehmer-Seite im Backend
 function flzpu_participants_page(): void {
+	try {
+		flzpu_participants_page_content();
+	} catch ( Throwable $error ) {
+		flzpu_render_admin_error( $error, 'Anzeigen und Verarbeiten der Probeunterrichtsteilnehmer' );
+	}
+}
+
+function flzpu_participants_page_content(): void {
+	flzpu_assert_admin_request();
 
 	if ( isset( $_POST['reset_participants'] ) ) {
-		$new_available_seats = intval( $_POST['available_seats'] );
+			$new_available_seats = isset( $_POST['available_seats'] ) ? intval( wp_unslash( $_POST['available_seats'] ) ) : 0;
 		FlzPuParticipant::reset( $new_available_seats );
 	}
 
 	if ( isset( $_POST['participant_delete'] ) ) {
-		$participant = FlzPuParticipant::get_by_id( intval( $_POST['participant_delete'] ) );
+			$participant = FlzPuParticipant::get_by_id( absint( wp_unslash( $_POST['participant_delete'] ) ) );
+			if ( ! $participant instanceof FlzPuParticipant ) {
+				throw new UnexpectedValueException( 'Der zu löschende Teilnehmer wurde nicht gefunden.' );
+			}
 		$participant->delete();
 	}
 
 	if ( isset( $_POST['participant_edit'] ) ) {
-		$participant_edit = FlzPuParticipant::get_by_id( intval( $_POST['participant_edit'] ) );
+			$participant_edit = FlzPuParticipant::get_by_id( absint( wp_unslash( $_POST['participant_edit'] ) ) );
+			if ( ! $participant_edit instanceof FlzPuParticipant ) {
+				throw new UnexpectedValueException( 'Der zu bearbeitende Teilnehmer wurde nicht gefunden.' );
+			}
 	} else {
 		$participant_edit             = new FlzPuParticipant( [] );
 		$participant_edit->school     = new FlzPuSchool( [] );
@@ -116,23 +171,44 @@ function flzpu_participants_page(): void {
 
 
 	if ( isset( $_POST['participant_save'] ) ) {
-		$participant_save_post=$_POST['participant_save'];
+			$participant_save_post = map_deep( wp_unslash( $_POST['participant_save'] ), 'sanitize_text_field' );
+			if ( ! is_array( $participant_save_post ) ) {
+				throw new UnexpectedValueException( 'Die Teilnehmerdaten besitzen kein gültiges Array-Format.' );
+			}
 
-		$school=FlzPuSchool::get_by_id($participant_save_post['school_id']);
-		if($participant_save_post['old_school_id']!=$participant_save_post['school_id'])
-		{
-			$old_school=FlzPuSchool::get_by_id($participant_save_post['old_school_id']);
-			$old_school->free_seat();
-			$school->take_seat();
+		$new_school_id = isset( $participant_save_post['school_id'] ) ? absint( $participant_save_post['school_id'] ) : 0;
+		$old_school_id = isset( $participant_save_post['old_school_id'] ) ? absint( $participant_save_post['old_school_id'] ) : 0;
+		$school=FlzPuSchool::get_by_id($new_school_id);
+		if ( ! $school instanceof FlzPuSchool ) {
+			throw new UnexpectedValueException( 'Die ausgewählte Grundschule wurde nicht gefunden.' );
 		}
+		$is_new_participant = empty( $participant_save_post['id'] );
 		unset($participant_save_post['school_id']);
 		$participant_save=$participant_save_post['id']?FlzPuParticipant::get_by_id(intval($participant_save_post['id'])):new FlzPuParticipant([]);
+		if ( ! $participant_save instanceof FlzPuParticipant ) {
+			throw new UnexpectedValueException( 'Der zu bearbeitende Teilnehmer wurde nicht gefunden.' );
+		}
 		$participant_save->assignPostData(
 			$participant_save_post,
 			[ 'name', 'firstName', 'email', 'class', 'lunch' ]
 		);
 		$participant_save->school=$school;
-		$participant_save->save();
+		flz_wpdb_objects\FlzWpdbTransaction::run(
+			static function () use ( $is_new_participant, $old_school_id, $new_school_id, $participant_save, $school ): void {
+				if ( $is_new_participant ) {
+					$school->take_seat();
+				} elseif ( $old_school_id !== $new_school_id ) {
+					$old_school = FlzPuSchool::get_by_id( $old_school_id );
+					if ( ! $old_school instanceof FlzPuSchool ) {
+						throw new UnexpectedValueException( 'Die bisherige Grundschule wurde nicht gefunden.' );
+					}
+					$old_school->free_seat();
+					$school->take_seat();
+				}
+				$participant_save->save();
+			},
+			'Speichern eines Probeunterrichtsteilnehmers und Anpassen der Schulplätze'
+		);
 
 	}
 
@@ -145,77 +221,72 @@ function flzpu_participants_page(): void {
 		'name'            => 'Bitte Grundschule auswählen',
 		'available_seats' => 0
 	] ) );
-	// CSV-Download-Link
-	$csv_data = array();
-	foreach ( $participants as $participant ) {
-		$csv_data[] = array(
-			'ID'           => $participant->id,
-			'Name'         => $participant->name,
-			'Vorname'      => $participant->firstName,
-			'Klasse'       => $participant->class,
-			'Email Eltern' => $participant->email,
-			'Schule'       => $participant->school->name,
-			'Mittagessen'  => ( $participant->lunch ? 'Ja' : 'Nein' ),
-			'Status'       => $participant->status
-		);
-	}
-
-	$csv_file = fopen( 'probeunterricht.csv', 'w' );
-	if ( ! empty( $csv_data ) ) {
-		fputcsv( $csv_file, array_keys( $csv_data[0] ) ); // CSV-Header schreiben
-		foreach ( $csv_data as $data ) {
-			fputcsv( $csv_file, $data, ";" ); // CSV-Daten schreiben
-		}
-	}
-	fclose( $csv_file );
+	$csv_file = flz_wpdb_objects_create_csv(
+		$participants,
+		'probeunterricht.csv',
+		"ID;Name;Vorname;Klasse;Email Eltern;Schule;Mittagessen;Status\n"
+	);
 
 
 	include( plugin_dir_path( __FILE__ ) . 'templates/participants.php' );
 }
 
 function processSchoolsCsvFile(): array|null {
-    $unprocessedLines=array();
+	$unprocessedLines = array();
+	$fileHandle = null;
 
-    try {
-        $isFormSubmitted = isset($_POST['submit_csv']);
-        if (!$isFormSubmitted) {
-            return null;
-        }
-        if (isset($_FILES['schools-csv']['tmp_name'])) {
-            $fileOriginalName = $_FILES['schools-csv']['name'];
-            // sanitize the file input
-            $filePath = $_FILES['schools-csv']['tmp_name'];
-            //verify if the file is a CSV file
-            if (pathinfo($fileOriginalName, PATHINFO_EXTENSION) != 'csv') {
-                throw new Exception('Das ist keine csv-Datei');
-            }
-            //open the file
-            $fileHandle = fopen($filePath, 'r');
-            if (!$fileHandle) {
-                throw new Exception("Konnte die Datei nicht öffnen");
-            }
-            fgetcsv($fileHandle);
-            //read each line and make a new teacher object
-            while(($line = fgetcsv($fileHandle, separator: ';')) !== false) {
-                // Assuming FlzEstTeachers accepts an array to create a new teacher
+	try {
+		if ( ! isset( $_POST['submit_csv'] ) ) {
+			return null;
+		}
+		if ( ! isset( $_FILES['schools-csv']['tmp_name'], $_FILES['schools-csv']['name'] ) ) {
+			throw new Exception( 'Keine Datei hochgeladen' );
+		}
 
-                $school= FlzPuSchool::get_by_name($line[0])?:new FlzPuSchool([
-                    'name'=>$line[0],
-                ]);
-                $school->available_seats=$line[1];
-                $school->save();
-            }
+		$fileOriginalName = sanitize_file_name( wp_unslash( $_FILES['schools-csv']['name'] ) );
+		$filePath = sanitize_text_field( wp_unslash( $_FILES['schools-csv']['tmp_name'] ) );
+		if ( strtolower( pathinfo( $fileOriginalName, PATHINFO_EXTENSION ) ) !== 'csv' ) {
+			throw new Exception( 'Das ist keine CSV-Datei' );
+		}
+		$fileHandle = fopen( $filePath, 'r' );
+		if ( ! $fileHandle ) {
+			throw new Exception( 'Konnte die Datei nicht öffnen' );
+		}
 
-            fclose($fileHandle);
+		fgetcsv( $fileHandle );
+		$school_rows = array();
+		while ( ( $line = fgetcsv( $fileHandle, separator: ';' ) ) !== false ) {
+			if ( count( $line ) < 2 || trim( (string) $line[0] ) === '' || ! is_numeric( $line[1] ) ) {
+				$line['error'] = 'Die CSV-Zeile benötigt einen Schulnamen und eine numerische Platzzahl.';
+				$unprocessedLines[] = $line;
+				continue;
+			}
+			$school_rows[] = array(
+				'name' => sanitize_text_field( $line[0] ),
+				'available_seats' => max( 0, intval( $line[1] ) ),
+			);
+		}
+		fclose( $fileHandle );
+		$fileHandle = null;
 
-        } else {
-            throw new Exception("Keine Datei hochgeladen");
-        }
-    } catch (Exception $e) {
-        // Echoing the script tag with alert to show the error message
-        echo '<script>alert("'.$e->getMessage().'")</script>';
-    }
-    return $unprocessedLines;
+		flz_wpdb_objects\FlzWpdbTransaction::run(
+			static function () use ( $school_rows ): void {
+				foreach ( $school_rows as $school_data ) {
+					$school = FlzPuSchool::get_by_name( $school_data['name'] )
+						?: new FlzPuSchool( array( 'name' => $school_data['name'] ) );
+					$school->available_seats = $school_data['available_seats'];
+					$school->save();
+				}
+			},
+			'Importieren der Grundschul-CSV-Datei'
+		);
+	} catch (Throwable $error) {
+		if ( is_resource( $fileHandle ) ) {
+			fclose( $fileHandle );
+		}
+		throw flzpu_operation_error( $error, 'Importieren der Grundschul-CSV-Datei' );
+	}
+	return $unprocessedLines;
 }
 
 // Hinzufügen der Backend-Menüs

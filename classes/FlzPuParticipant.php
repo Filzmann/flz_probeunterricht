@@ -1,5 +1,8 @@
 <?php
 
+// Exception-Texte sind interne Logdaten; HTML-Escaping erfolgt erst an der UI-Grenze.
+// phpcs:disable WordPress.Security.EscapeOutput.ExceptionNotEscaped
+
 class FlzPuParticipant extends FlzPerson{
 	
 	public int|null $id;
@@ -52,24 +55,36 @@ class FlzPuParticipant extends FlzPerson{
 	}
 
 	public static function reset( int $new_available_seats = 8 ): void {
-		FlzPuParticipant::truncate_table();
-		$schools = FlzPuSchool::get_all_by();
-		foreach ( $schools as $school ) {
-			$school->available_seats = max( 0, $new_available_seats );
-			$school->save();
-		}
+		flz_wpdb_objects\FlzWpdbTransaction::run(
+			static function () use ( $new_available_seats ): void {
+				foreach ( FlzPuParticipant::get_all_by() as $participant ) {
+					$participant->delete();
+				}
+				$schools = FlzPuSchool::get_all_by();
+				foreach ( $schools as $school ) {
+					$school->available_seats = max( 0, $new_available_seats );
+					$school->save();
+				}
+			},
+			'Leeren der Probeunterrichtsteilnehmer und Zurücksetzen der Schulplätze'
+		);
 	}
 
 	public function generate_activation_link(): string {
-		// Generiere einen eindeutigen Token
-		$this->activationToken = md5( uniqid() );
+		$this->activationToken = wp_generate_password( 48, false, false );
 
 		// Speichere den Token und das Ablaufdatum in der Datenbank
-		$this->activationExpiration = date( 'Y-m-d H:i:s', strtotime( '+48 hours' ) );
+		$this->activationExpiration = gmdate( 'Y-m-d H:i:s', time() + 2 * DAY_IN_SECONDS );
 		$this->save();
 
 		// Baue den Aktivierungslink
-		return get_permalink() . '?id=' . $this->id . '&token=' . $this->activationToken;
+		return add_query_arg(
+			array(
+				'id' => $this->id,
+				'token' => $this->activationToken,
+			),
+			get_permalink()
+		);
 	}
 
 	function send_activation_email(): void {
@@ -79,18 +94,48 @@ class FlzPuParticipant extends FlzPerson{
 		$message = 'Bitte klicken Sie auf den folgenden Link, um die Teilnahme am Probeunterricht zu bestätigen: <br /> ' . $activation_link;
 
 		// E-Mail versenden
-		wp_mail( $this->email, $subject, $message );
+		if ( ! wp_mail( $this->email, $subject, $message ) ) {
+			throw flzpu_operation_error(
+				new RuntimeException( 'wp_mail() hat die Aktivierungs-E-Mail nicht angenommen.' ),
+				'Senden der Aktivierungs-E-Mail für Teilnehmer-ID ' . (string) $this->id
+			);
+		}
 	}
 
 	public function activate( $token ): string {
-		if ( $this->activationToken === $token ) {
+		$expires_at = strtotime( (string) $this->activationExpiration );
+		$token_valid = is_string( $token )
+			&& $this->activationToken !== null
+			&& hash_equals( $this->activationToken, $token );
+		if ( $token_valid && $expires_at !== false && $expires_at >= time() ) {
 			$this->status = 'active';
+			$this->activationToken = null;
+			$this->activationExpiration = null;
 			$this->save();
 
 			return "<div style='font-size: 2em; background-color:lawngreen;'>Der Teilnehmer wurde aktiviert. Sie können das Fenster jetzt schließen!</div>";
 		} else {
 			return "<div style='font-size: 2em; background-color:red;'>Fehler bei der Aktivierung. Bitte Link nochmal testen oder Teilnehmer erneut registrieren. </div>";
 		}
+	}
+
+	public function getCsvLine(): string {
+		$values = array(
+			$this->id,
+			$this->name,
+			$this->firstName,
+			$this->class,
+			$this->email,
+			$this->school?->name,
+			$this->lunch ? 'Ja' : 'Nein',
+			$this->status,
+		);
+		$values = array_map(
+			static fn( $value ): string => '"' . str_replace( '"', '""', (string) $value ) . '"',
+			$values
+		);
+
+		return implode( ';', $values );
 	}
 	protected static function afterInsert(): void {
 		//FlzPuSchool::take_seat();

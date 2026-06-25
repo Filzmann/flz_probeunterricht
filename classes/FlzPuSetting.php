@@ -21,11 +21,20 @@ class FlzPuSetting extends FlzWpdbObject {
 	}
 
 	protected static function afterCreate(): void {
-		//insert defaults
-		$setting=new FlzPuSetting(array('name'=>"MaxTeilnehmerProSchule", 'value'=>"8"));
-		$setting->save();
-		$setting=new FlzPuSetting(array('name'=>"MaxTeilnehmerGesamt", 'value'=>"180"));
-		$setting->save();
+		$defaults = array(
+			'MaxTeilnehmerProSchule' => '8',
+			'MaxTeilnehmerGesamt' => '180',
+		);
+		flz_wpdb_objects\FlzWpdbTransaction::run(
+			static function () use ( $defaults ): void {
+				foreach ( $defaults as $name => $value ) {
+					if ( static::get_by_fields( array( 'name' => $name ) ) === null ) {
+						( new FlzPuSetting( array( 'name' => $name, 'value' => $value ) ) )->save();
+					}
+				}
+			},
+			'Anlegen fehlender Probeunterrichts-Standardeinstellungen'
+		);
 
 	}
 	public static function get_value_by_name( string $name ): string {

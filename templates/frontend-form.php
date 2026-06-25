@@ -1,6 +1,7 @@
 
 
 <form method="post" data-max-reached="<?php echo $max_reached ? 'true' : 'false'; ?>">
+	<?php wp_nonce_field( 'flzpu_register_participant', 'flzpu_nonce' ); ?>
     <label for="participant[school_id]">Schule:</label>
     <select name="participant[school_id]" id="participant[school_id]" required>
         <option disabled selected value="">Bitte Grundschule auswählen</option>
@@ -8,7 +9,7 @@
             if (!empty($schools)) {
                 foreach ( $schools as $school ) {
                     $disabled=$school->available_seats>0?'':"disabled";
-                    echo '<option '.$disabled.' value="' . $school->id . '">' . $school->name . ' ('.$school->available_seats.')</option>';
+	                    echo '<option ' . esc_attr( $disabled ) . ' value="' . esc_attr( $school->id ) . '">' . esc_html( $school->name . ' (' . $school->available_seats . ')' ) . '</option>';
                 }
             }
         ?>
@@ -29,7 +30,7 @@
         }
     }
 
-    if ($max_reached) echo "Die maximale Teilnehmerzahl von ".FlzPuSetting::get_value_by_name("MaxTeilnehmerGesamt")." ist erreicht. derzeit sind keine weiteren Anmeldungen möglich."
+	    if ($max_reached) echo esc_html( 'Die maximale Teilnehmerzahl von ' . FlzPuSetting::get_value_by_name( 'MaxTeilnehmerGesamt' ) . ' ist erreicht. Derzeit sind keine weiteren Anmeldungen möglich.' );
     ?>
 
     <button type="submit" name="submit">Absenden</button>

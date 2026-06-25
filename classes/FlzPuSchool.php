@@ -1,7 +1,10 @@
 <?php
 
+// Exception-Texte sind interne Logdaten; HTML-Escaping erfolgt erst an der UI-Grenze.
+// phpcs:disable WordPress.Security.EscapeOutput.ExceptionNotEscaped
 
 use flz_wpdb_objects\FlzWpdbObject;
+use flz_wpdb_objects\FlzWpdbObjectsException;
 
 class FlzPuSchool extends FlzWpdbObject {
 	const example_schools = [
@@ -77,18 +80,29 @@ class FlzPuSchool extends FlzWpdbObject {
 	protected static function afterCreate(): void {
 		//insert defaults
 		if ( FlzPuSchool::count_by() == 0 ) {
-			foreach ( FlzPuSchool::example_schools as $example_school ) {
-				$school=new FlzPuSchool(array(
-					'name'     => $example_school,
-					'available_seats' => 8
-				));
-				$school->save();
-			}
+			flz_wpdb_objects\FlzWpdbTransaction::run(
+				static function (): void {
+					foreach ( FlzPuSchool::example_schools as $example_school ) {
+						$school=new FlzPuSchool(array(
+							'name'     => $example_school,
+							'available_seats' => 8
+						));
+						$school->save();
+					}
+				},
+				'Anlegen der Standard-Grundschulen'
+			);
 		}
 	}
 
 
 	public function take_seat(): void {
+		if ( $this->available_seats === null || $this->available_seats <= 0 ) {
+			throw FlzWpdbObjectsException::invalid_model_state(
+				static::class,
+				'Für die Schule mit ID ' . (string) $this->id . ' ist kein freier Platz verfügbar.'
+			);
+		}
 		$this->available_seats -= 1;
 		$this->save();
 	}
@@ -99,28 +113,24 @@ class FlzPuSchool extends FlzWpdbObject {
 	}
 
 
-    public static function get_csv_link():string{
-        // CSV-Download-Link
-		$schools=static::get_all_by( order_by: 'name' );
+	public function getCsvLine(): string {
+		$values = array( $this->name, $this->available_seats );
+		$values = array_map(
+			static fn( $value ): string => '"' . str_replace( '"', '""', (string) $value ) . '"',
+			$values
+		);
 
+		return implode( ';', $values );
+	}
 
-        $csv_data = array();
-        foreach ( $schools as $school ) {
-            $csv_data[] = array(
-                'name'         => $school->name,
-                'available_seats' => $school->available_seats,
-            );
-        }
+	public static function get_csv_link(): string {
+			$schools=static::get_all_by( order_by: 'name' );
 
-        $csv_file = fopen( 'schools.csv', 'w' );
-        if ( ! empty( $csv_data ) ) {
-            fputcsv( $csv_file, array_keys( $csv_data[0] ) ); // CSV-Header schreiben
-            foreach ( $csv_data as $data ) {
-                fputcsv( $csv_file, $data, ";" ); // CSV-Daten schreiben
-            }
-        }
-        fclose( $csv_file );
-        return admin_url()."schools.csv";
-    }
+		return flz_wpdb_objects_create_csv(
+			$schools,
+			'schools.csv',
+			"Name;Freie Plätze\n"
+		);
+	}
 
 }
