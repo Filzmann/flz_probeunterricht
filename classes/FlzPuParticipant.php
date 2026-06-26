@@ -113,9 +113,9 @@ class FlzPuParticipant extends FlzPerson{
 			$this->activationExpiration = null;
 			$this->save();
 
-			return "<div style='font-size: 2em; background-color:lawngreen;'>Der Teilnehmer wurde aktiviert. Sie können das Fenster jetzt schließen!</div>";
+			return flz_ui()->notice( 'Der Teilnehmer wurde aktiviert. Sie können das Fenster jetzt schließen!', 'success' );
 		} else {
-			return "<div style='font-size: 2em; background-color:red;'>Fehler bei der Aktivierung. Bitte Link nochmal testen oder Teilnehmer erneut registrieren. </div>";
+			return flz_ui()->notice( 'Fehler bei der Aktivierung. Bitte Link nochmal testen oder Teilnehmer erneut registrieren.', 'error' );
 		}
 	}
 

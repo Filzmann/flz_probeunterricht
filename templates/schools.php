@@ -1,56 +1,106 @@
+<?php
+$flzpu_ui = flz_ui();
+$flzpu_school_row = static function ( FlzPuSchool $school ) use ( $flzpu_ui ): string {
+	$is_new = empty( $school->id );
+	$row_id = $is_new ? 'flzpu-school-new' : 'flzpu-school-' . (int) $school->id;
+	$delete_action = '';
+
+	if ( ! $is_new ) {
+		$delete_action .= $flzpu_ui->action_form_button(
+			array(
+				'preset' => 'delete',
+				'label'  => 'Schule löschen',
+				'method' => 'post',
+				'nonce'  => 'flzpu_admin_action',
+				'hidden' => array( 'school_delete' => $school->id ),
+			)
+		);
+	}
+
+	return $flzpu_ui->editable_row(
+		array(
+			'id'         => $row_id,
+			'new'        => $is_new,
+			'row_hidden' => $is_new,
+			'form'       => array(
+				'method' => 'post',
+				'nonce'  => 'flzpu_admin_action',
+				'hidden' => array( 'school_id' => $school->id ?? '' ),
+			),
+			'cells'      => array(
+				array(
+					'view'  => $school->name ?? '',
+					'field' => array(
+						'type'     => 'text',
+						'name'     => 'name',
+						'label'    => 'Name',
+						'value'    => $school->name ?? '',
+						'required' => true,
+					),
+				),
+				array(
+					'view'  => $school->available_seats ?? '',
+					'field' => array(
+						'type'     => 'number',
+						'name'     => 'available_seats',
+						'label'    => 'Freie Plätze',
+						'value'    => $school->available_seats ?? '',
+						'required' => true,
+						'min'      => 0,
+					),
+				),
+			),
+			'edit'       => array( 'label' => 'Schule bearbeiten' ),
+			'save'       => array(
+				'label' => 'Schule speichern',
+				'attrs' => array( 'name' => 'school_submit' ),
+			),
+			'extra_actions' => $delete_action,
+		)
+	);
+};
+?>
 <div class="wrap">
-    <h1>Schulen bearbeiten</h1>
-    <div style="display: inline-block; width: 50%; overflow: auto; height: 20em;">
-	        <a href="<?php echo esc_url( FlzPuSchool::get_csv_link() ); ?>">CSV herunterladen</a>
-        <table>
-            <tr>
-                <th>Name</th>
-                <th>Freie Plätze</th>
-                <th>Aktionen</th>
-            </tr>
-            <?php foreach ( $schools as $school ) : ?>
-                <tr>
-	                    <td><?php echo esc_html( $school->name ); ?></td>
-	                    <td><?php echo esc_html( $school->available_seats ); ?></td>
-                    <td>
-                        <form method="post" style="display: inline;">
-							<?php wp_nonce_field( 'flzpu_admin_action' ); ?>
-	                            <input type="hidden" name="school_delete" value="<?php echo esc_attr( $school->id ); ?>" />
-                            <button type="submit">Löschen</button>
-                        </form>
-                        <form method="post" style="display: inline;">
-							<?php wp_nonce_field( 'flzpu_admin_action' ); ?>
-	                            <input type="hidden" name="school_id" value="<?php echo esc_attr( $school->id ); ?>" />
-                            <button type="submit" name="school_edit">Bearbeiten</button>
-                        </form>
-                    </td>
-                </tr>
-            <?php endforeach; ?>
-        </table>
-    </div>
-    <div style="width: 40%; display: inline-block; vertical-align: top; text-align: start;">
-        <h2>Schule hinzufügen/bearbeiten</h2>
-
-        <form method="post">
-			<?php wp_nonce_field( 'flzpu_admin_action' ); ?>
-	            <input type="hidden" name="school_id" value="<?php echo esc_attr( $selected_school->id ); ?>" />
-            <label for="school">Name:</label>
-	            <input type="text" name="name" value="<?php echo esc_attr( $selected_school->name ); ?>" required /><br>
-            <label for="available_seats">Freie Plätze:</label>
-	            <input type="number" name="available_seats" value="<?php echo esc_attr( $selected_school->available_seats ); ?>" required /><br>
-            <button type="submit" name="school_submit">Speichern</button>
-        </form>
-    </div>
+	<h1>Schulen bearbeiten</h1>
+	<div style="width: 100%; overflow: auto; max-height: 24em;">
+		<p>
+			<?php echo $flzpu_ui->button_new( array( 'label' => 'Neue Schule anlegen', 'attrs' => array( 'data-flz-ui-show-new-row' => 'flzpu-school-new' ) ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
+		</p>
+		<table>
+			<thead>
+				<tr>
+					<th>Name</th>
+					<th>Freie Plätze</th>
+					<th>Aktionen</th>
+				</tr>
+			</thead>
+			<tbody>
+				<?php echo $flzpu_school_row( new FlzPuSchool( array() ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Tabellenzeile. ?>
+				<?php foreach ( $schools as $school ) : ?>
+					<?php echo $flzpu_school_row( $school ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Tabellenzeile. ?>
+				<?php endforeach; ?>
+			</tbody>
+		</table>
+	</div>
 </div>
-<div>
-    <h3>Schulen Sammel-Upload (CSV-Datei)</h3>
-    <p>Achtung, die eindeutige identifikation der Lehrer*innen geschieht über die E-Mail-Adresse. Die Datei muss in folgendem Format sein: <br>
-        <code>"Name der Schule";AnzahlPlätze</code><br/>
-        Es bietet sich an, diese einfach vorher herunterzuladen und zu bearbeiten. </p>
-    <form method="post" enctype="multipart/form-data">
-		<?php wp_nonce_field( 'flzpu_admin_action' ); ?>
-        <input type="file" name="schools-csv" id="schools-csv" accept=".csv">
-        <input type="submit" value="Upload" name="submit_csv">
-    </form>
-
-</div>
+<?php
+// phpcs:disable WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die CSV-Komponente inklusive URL, Labels und Formularfeldern.
+echo $flzpu_ui->csv_panel(
+	array(
+		'title'       => 'Schulen CSV',
+		'description' => 'Download als Vorlage oder Sammel-Upload für Grundschulen und Platzanzahl.',
+		'format'      => '"Name der Schule";AnzahlPlätze',
+		'export'      => array(
+			'href'  => FlzPuSchool::get_csv_link(),
+			'label' => 'Schulen-CSV herunterladen',
+		),
+		'upload'      => array(
+			'nonce'        => 'flzpu_admin_action',
+			'file_name'    => 'schools-csv',
+			'file_id'      => 'schools-csv',
+			'button_label' => 'Schulen-CSV hochladen',
+		),
+	)
+);
+// phpcs:enable WordPress.Security.EscapeOutput.OutputNotEscaped
+?>

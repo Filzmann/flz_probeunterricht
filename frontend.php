@@ -19,7 +19,7 @@ function flzpu_probeunterricht_form($atts): string
 		if ( isset( $_GET['id'], $_GET['token'] ) ) {
 			$participant = FlzPuParticipant::get_by_id( absint( wp_unslash( $_GET['id'] ) ) );
 			if ( ! $participant instanceof FlzPuParticipant ) {
-				$out .= '<p class="flz-pu-error">Der Aktivierungslink ist ungültig.</p>';
+				$out .= flz_ui()->notice( 'Der Aktivierungslink ist ungültig.', 'error' );
 			} else {
 				$out .= $participant->activate( sanitize_text_field( wp_unslash( $_GET['token'] ) ) );
 			}
@@ -49,7 +49,7 @@ function flzpu_probeunterricht_form($atts): string
 				FlzPuParticipant::count_by()
 				>= (int) FlzPuSetting::get_value_by_name( 'MaxTeilnehmerGesamt' )
 			) {
-				$out .= '<p class="flz-pu-error">Die maximale Teilnehmerzahl ist bereits erreicht.</p>';
+				$out .= flz_ui()->notice( 'Die maximale Teilnehmerzahl ist bereits erreicht.', 'error' );
 			} else {
 				unset( $participant_post['school_id'] );
 				$participant = new FlzPuParticipant( array() );
@@ -69,10 +69,10 @@ function flzpu_probeunterricht_form($atts): string
 				$registration_saved = true;
 				try {
 					$participant->send_activation_email();
-					$out .= '<p class="flz-pu-success">Danke, die Anmeldung und die Aktivierungs-E-Mail wurden versendet.</p>';
+					$out .= flz_ui()->notice( 'Danke, die Anmeldung und die Aktivierungs-E-Mail wurden versendet.', 'success' );
 				} catch ( Throwable $mail_error ) {
 					flzpu_log_error( $mail_error, 'Versenden der Aktivierungs-E-Mail nach gespeicherter Anmeldung' );
-					$out .= '<p class="flz-pu-error">Die Anmeldung wurde gespeichert, aber die Aktivierungs-E-Mail konnte nicht versendet werden. Bitte kontaktieren Sie die Schule.</p>';
+					$out .= flz_ui()->notice( 'Die Anmeldung wurde gespeichert, aber die Aktivierungs-E-Mail konnte nicht versendet werden. Bitte kontaktieren Sie die Schule.', 'error' );
 				}
 
 				if ( ! empty( $atts['danke'] ) ) {
@@ -90,7 +90,7 @@ function flzpu_probeunterricht_form($atts): string
 		$schools = FlzPuSchool::get_all_by( order_by: 'name' );
 	} catch ( Throwable $error ) {
 		flzpu_log_error( $error, 'Verarbeiten der öffentlichen Probeunterrichtsseite' );
-		$out .= '<p class="flz-pu-error">Die Anfrage konnte wegen eines technischen Fehlers nicht verarbeitet werden. Bitte später erneut versuchen.</p>';
+		$out .= flz_ui()->notice( 'Die Anfrage konnte wegen eines technischen Fehlers nicht verarbeitet werden. Bitte später erneut versuchen.', 'error' );
 		$max_reached = true;
 		$schools = array();
 	}

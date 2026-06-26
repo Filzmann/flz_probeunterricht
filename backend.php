@@ -81,22 +81,8 @@ function flzpu_schools_page_content(): void {
     $unprocessed=processSchoolsCsvFile();
 	    if($unprocessed)
 	    {
-	        echo "Folgende Datensätze konnten nicht verarbeitet werden:<br>";
-	        echo"<textarea cols='100' rows='5'>";
-	        foreach ($unprocessed as $line) {
-	            echo esc_textarea( implode( ';', $line ) . "\n" );
-	        }
-	        echo"</textarea>";
+	        echo flz_ui()->csv_unprocessed_notice( $unprocessed, array( 'name' => 'flzpu_unprocessed_schools' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente.
     }
-	if ( isset( $_POST['school_edit'] ) ) {
-			$school_id       = isset( $_POST['school_id'] ) ? absint( wp_unslash( $_POST['school_id'] ) ) : 0;
-			$selected_school = FlzPuSchool::get_by_id( $school_id );
-			if ( ! $selected_school instanceof FlzPuSchool ) {
-				throw new UnexpectedValueException( 'Die zu bearbeitende Grundschule wurde nicht gefunden.' );
-			}
-	} else {
-		$selected_school = new FlzPuSchool( [] );
-	}
 	if ( isset( $_POST['school_submit'] ) ) {
 			$name = isset( $_POST['name'] ) ? sanitize_text_field( wp_unslash( $_POST['name'] ) ) : '';
 			$available_seats = isset( $_POST['available_seats'] ) ? intval( wp_unslash( $_POST['available_seats'] ) ) : 0;
@@ -155,20 +141,6 @@ function flzpu_participants_page_content(): void {
 			}
 		$participant->delete();
 	}
-
-	if ( isset( $_POST['participant_edit'] ) ) {
-			$participant_edit = FlzPuParticipant::get_by_id( absint( wp_unslash( $_POST['participant_edit'] ) ) );
-			if ( ! $participant_edit instanceof FlzPuParticipant ) {
-				throw new UnexpectedValueException( 'Der zu bearbeitende Teilnehmer wurde nicht gefunden.' );
-			}
-	} else {
-		$participant_edit             = new FlzPuParticipant( [] );
-		$participant_edit->school     = new FlzPuSchool( [] );
-		$participant_edit->school->id = 9999;
-	}
-
-	/** Speichern des bearbeiteten participant  */
-
 
 	if ( isset( $_POST['participant_save'] ) ) {
 			$participant_save_post = map_deep( wp_unslash( $_POST['participant_save'] ), 'sanitize_text_field' );
@@ -233,29 +205,14 @@ function flzpu_participants_page_content(): void {
 
 function processSchoolsCsvFile(): array|null {
 	$unprocessedLines = array();
-	$fileHandle = null;
 
 	try {
 		if ( ! isset( $_POST['submit_csv'] ) ) {
 			return null;
 		}
-		if ( ! isset( $_FILES['schools-csv']['tmp_name'], $_FILES['schools-csv']['name'] ) ) {
-			throw new Exception( 'Keine Datei hochgeladen' );
-		}
 
-		$fileOriginalName = sanitize_file_name( wp_unslash( $_FILES['schools-csv']['name'] ) );
-		$filePath = sanitize_text_field( wp_unslash( $_FILES['schools-csv']['tmp_name'] ) );
-		if ( strtolower( pathinfo( $fileOriginalName, PATHINFO_EXTENSION ) ) !== 'csv' ) {
-			throw new Exception( 'Das ist keine CSV-Datei' );
-		}
-		$fileHandle = fopen( $filePath, 'r' );
-		if ( ! $fileHandle ) {
-			throw new Exception( 'Konnte die Datei nicht öffnen' );
-		}
-
-		fgetcsv( $fileHandle );
 		$school_rows = array();
-		while ( ( $line = fgetcsv( $fileHandle, separator: ';' ) ) !== false ) {
+		foreach ( flz_wpdb_objects_read_uploaded_csv( 'schools-csv', 'Importieren der Grundschul-CSV-Datei' ) as $line ) {
 			if ( count( $line ) < 2 || trim( (string) $line[0] ) === '' || ! is_numeric( $line[1] ) ) {
 				$line['error'] = 'Die CSV-Zeile benötigt einen Schulnamen und eine numerische Platzzahl.';
 				$unprocessedLines[] = $line;
@@ -266,8 +223,6 @@ function processSchoolsCsvFile(): array|null {
 				'available_seats' => max( 0, intval( $line[1] ) ),
 			);
 		}
-		fclose( $fileHandle );
-		$fileHandle = null;
 
 		flz_wpdb_objects\FlzWpdbTransaction::run(
 			static function () use ( $school_rows ): void {
@@ -281,9 +236,6 @@ function processSchoolsCsvFile(): array|null {
 			'Importieren der Grundschul-CSV-Datei'
 		);
 	} catch (Throwable $error) {
-		if ( is_resource( $fileHandle ) ) {
-			fclose( $fileHandle );
-		}
 		throw flzpu_operation_error( $error, 'Importieren der Grundschul-CSV-Datei' );
 	}
 	return $unprocessedLines;
