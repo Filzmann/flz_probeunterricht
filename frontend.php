@@ -107,3 +107,43 @@ function flzpu_probeunterricht_form($atts): string
 
 // Hinzufügen des Formulars im Frontend
 add_shortcode( 'flzpu', 'flzpu_probeunterricht_form' );
+
+/**
+ * Registriert den Gutenberg-Block für das Probeunterrichtsformular.
+ */
+function flzpu_register_blocks(): void {
+	if ( ! function_exists( 'flz_ui_register_shortcode_block' ) ) {
+		return;
+	}
+
+	flz_ui_register_shortcode_block( array(
+		'name'        => 'flz/probeunterricht',
+		'shortcode'   => 'flzpu',
+		'title'       => 'FLZ Probeunterricht',
+		'description' => 'Anmeldeformular für den Probeunterricht.',
+		'icon'        => 'welcome-learn-more',
+		'keywords'    => array( 'probeunterricht', 'anmeldung', 'flz' ),
+		'attributes'  => array(
+			'essen' => array(
+				'type'    => 'boolean',
+				'default' => false,
+			),
+			'danke' => array(
+				'type'    => 'string',
+				'default' => '',
+			),
+		),
+		'fields'      => array(
+			'essen' => array(
+				'label'       => 'Mittagessen abfragen',
+				'description' => 'Blendet die Mittagessen-Auswahl im Formular ein.',
+			),
+			'danke' => array(
+				'label'       => 'Danke-Seite-ID',
+				'description' => 'Optional: WordPress-Seiten-ID für die Weiterleitung nach erfolgreicher Anmeldung.',
+			),
+		),
+	) );
+}
+
+add_action( 'init', 'flzpu_register_blocks' );

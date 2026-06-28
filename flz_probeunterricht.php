@@ -1,6 +1,6 @@
 <?php
 /*
-Plugin Name: flz_probeunterricht
+Plugin Name: FLZ Probeunterricht
 Plugin URI: Deine Plugin-URI
 Description: Probeunterricht am Tagore-Gymnasium
 Version: 1.0

@@ -7,14 +7,7 @@ defined('ABSPATH') || exit;
  */
 function flzpu_log_error(Throwable $error, string $context): void
 {
-	$messages = array();
-	$current = $error;
-	do {
-		$messages[] = get_class($current) . ': ' . $current->getMessage();
-		$current = $current->getPrevious();
-	} while ($current instanceof Throwable);
-
-	error_log('[flz_probeunterricht] ' . $context . ' | ' . implode(' <- ', $messages));
+	flz_wpdb_objects\FlzWpdbObjectsException::log_error($error, 'flz_probeunterricht', $context);
 }
 
 /**
@@ -52,7 +45,7 @@ function flzpu_assert_admin_request(): void
 	$request_method = isset( $_SERVER['REQUEST_METHOD'] )
 		? sanitize_key( wp_unslash( $_SERVER['REQUEST_METHOD'] ) )
 		: '';
-	if ( 'POST' === $request_method ) {
+	if ( 'post' === $request_method ) {
 		check_admin_referer( 'flzpu_admin_action' );
 	}
 }
