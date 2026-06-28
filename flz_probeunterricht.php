@@ -43,9 +43,8 @@ require_once( "classes/FlzPuSetting.php" );
 
 // Aktivierung/Deaktivierung-Modul einbinden
 require_once(plugin_dir_path(__FILE__) . 'activate-deactivate.php');
-//
-// Backend-Modul einbinden
-require_once(plugin_dir_path(__FILE__) . 'backend.php');
+// Backend-Module einbinden
+require_once(plugin_dir_path(__FILE__) . 'backend/backend.php');
 
 // Frontend-Modul einbinden
 require_once(plugin_dir_path(__FILE__) . 'frontend.php');

@@ -119,30 +119,4 @@ class FlzPuParticipant extends FlzPerson{
 		}
 	}
 
-	public function getCsvLine(): string {
-		$values = array(
-			$this->id,
-			$this->name,
-			$this->firstName,
-			$this->class,
-			$this->email,
-			$this->school?->name,
-			$this->lunch ? 'Ja' : 'Nein',
-			$this->status,
-		);
-		$values = array_map(
-			static fn( $value ): string => '"' . str_replace( '"', '""', (string) $value ) . '"',
-			$values
-		);
-
-		return implode( ';', $values );
-	}
-	protected static function afterInsert(): void {
-		//FlzPuSchool::take_seat();
-	}
-	protected static function afterDelete(): void {
-		//FlzPuSchool::free_seat();
-	}
-
-
 }

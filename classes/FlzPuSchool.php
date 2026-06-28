@@ -112,24 +112,19 @@ class FlzPuSchool extends FlzWpdbObject {
 		$this->save();
 	}
 
-
-	public function getCsvLine(): string {
-		$values = array( $this->name, $this->available_seats );
-		$values = array_map(
-			static fn( $value ): string => '"' . str_replace( '"', '""', (string) $value ) . '"',
-			$values
-		);
-
-		return implode( ';', $values );
-	}
-
 	public static function get_csv_link(): string {
-			$schools=static::get_all_by( order_by: 'name' );
+		$schools=static::get_all_by( order_by: 'name' );
 
-		return flz_wpdb_objects_create_csv(
-			$schools,
-			'schools.csv',
-			"Name;Freie Plätze\n"
+		return flz_wpdb_objects_create_csv_file(
+			array( 'Name', 'Freie Plätze' ),
+			array_map(
+				static fn( FlzPuSchool $school ): array => array(
+					$school->name,
+					$school->available_seats,
+				),
+				$schools
+			),
+			'schools.csv'
 		);
 	}
 
