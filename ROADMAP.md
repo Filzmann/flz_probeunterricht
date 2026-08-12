@@ -35,8 +35,8 @@ Für das Plugin existiert noch kein fokussierter Test.
 3. Aufbewahrung, Auskunft, Aktivierungsfrist, Widerruf, Anonymisierung und
    Löschung der Daten minderjähriger Teilnehmender festlegen; WordPress-Privacy-
    Exporter/-Eraser ergänzen.
-4. Direkte Includes der Shared-Plugin-Interna durch öffentliche Verträge
-   ersetzen und beide Abhängigkeiten defensiv prüfen.
+4. **Erledigt:** Direkte Includes der Shared-Plugin-Interna durch verzögerten,
+   defensiven Bootstrap mit öffentlichen APIs und Mindestversionen ersetzt.
 5. Serverseitige Fachvalidierung vervollständigen: Pflichtfelder, E-Mail,
    erlaubte Statuswerte, Klasse, Schule und Essensauswahl nicht allein durch
    HTML oder Typumwandlung begrenzen.
