@@ -1,4 +1,6 @@
 <?php
+// Test-Exceptions werden ausschließlich von der CLI ausgewertet.
+// phpcs:disable WordPress.Security.EscapeOutput.ExceptionNotEscaped
 $source = file_get_contents( dirname( __DIR__ ) . '/flz_probeunterricht.php' );
 
 if ( false === $source ) {
