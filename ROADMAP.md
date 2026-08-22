@@ -3,14 +3,15 @@
 ## Prüfstatus
 
 **Funktionsstand 1.1.0 ohne offene P0-Befunde; Release-Gate in
-Übernahmephase 0 blockiert.** Nichtdestruktive
+Übernahmephase 1 blockiert.** Nichtdestruktive
 Deaktivierung, geschützte CSV-Roundtrips, atomare Kapazitätsbilanz, additive
 Legacy-Migration, Datenschutz und Fachvalidierung sind implementiert und durch
 fokussierte Smokes abgesichert. Die reale lokale Bestandsmigration sowie
-Aktivieren–Deaktivieren–Aktivieren wurden erfolgreich geprüft. Vor einem Tag
-fehlen CI, gemessene No-Regression-Coverage, ausgefüllte Browser-/Mail-/
-Zwei-Prozess-Abnahme und ein reproduzierbar geprüftes Release-Artefakt. Das
-Protokoll liegt unter `docs/manual-acceptance.md`.
+Aktivieren–Deaktivieren–Aktivieren wurden erfolgreich geprüft. PR-/Main-CI mit
+branchgleichen Shared-Plugins ist lokal konfiguriert; vor einem Tag fehlen ein
+grüner Remote-Lauf, gemessene No-Regression-Coverage, ausgefüllte Browser-/
+Mail-/Zwei-Prozess-Abnahme und ein reproduzierbar geprüftes Release-Artefakt.
+Das Protokoll liegt unter `docs/manual-acceptance.md`.
 
 ## P0
 
