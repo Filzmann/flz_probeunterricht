@@ -42,6 +42,9 @@ Imports oder Deployments ohne ausdrückliche Freigabe; nie `git add .` verwenden
   unabhängig davon vollständig abgedeckt.
 - Der PHPCOV-/Xdebug-Messjob erzwingt eine PHP-Baseline von 8,16 Prozent; das
   separate Ziel für neuen oder wesentlich geänderten Code bleibt 85 Prozent.
+- `scripts/build-release` erzeugt über den kanonischen Workspace-Builder ein
+  reproduzierbares Ein-Wurzel-ZIP mit Manifest und SHA-256. Das Artefakt-Gate
+  bleibt bis zur Prüfung des exakten ZIP in WordPress `configured`.
 - Ein Fast- oder Diagnosecheck ist kein Releaseurteil. Ein Release braucht ein
   sauberes Repository, konsistente Version/Changelog/Lizenz, vollständig
   ausgefülltes `docs/manual-acceptance.md`, ein reproduzierbares Ein-Wurzel-
