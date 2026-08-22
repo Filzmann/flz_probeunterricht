@@ -10,6 +10,7 @@ ergänzt.
 - Branchgleicher Checkout beider Shared-Plugins mit sicherem `main`-Fallback
   ergänzt.
 - Formale Lizenz- und Abnahmenachweise in den Delivery-Vertrag aufgenommen.
+- Gepinnten PHPCOV-/Xdebug-Messjob für eine ehrliche PHP-Baseline ergänzt.
 
 ## 1.1.0
 

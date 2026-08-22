@@ -69,3 +69,47 @@ jobs:
       - name: Komponentenprüfungen
         working-directory: flz_probeunterricht
         run: ./scripts/check-fast
+
+  coverage:
+    name: PHP-Coverage
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Plugin auschecken
+        uses: actions/checkout@v7
+        with:
+          path: flz_probeunterricht
+      - name: Quality-Workspace-Referenz bestimmen
+        id: quality-ref
+        env:
+          CANDIDATE_REF: ${{ github.head_ref || github.ref_name }}
+        run: |
+          if git ls-remote --exit-code --heads https://github.com/Filzmann/tagore-plugins.git "refs/heads/$CANDIDATE_REF" >/dev/null 2>&1; then
+            echo "ref=$CANDIDATE_REF" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=main" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Quality-Workspace auschecken
+        uses: actions/checkout@v7
+        with:
+          repository: Filzmann/tagore-plugins
+          ref: ${{ steps.quality-ref.outputs.ref }}
+          path: tagore-plugins
+      - name: PHP mit Xdebug einrichten
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: xdebug
+          extensions: mbstring
+          tools: composer:v2
+      - name: Gesperrte Coverage-Werkzeuge installieren
+        run: |
+          composer install --working-dir=flz_probeunterricht --no-interaction --no-progress --prefer-dist
+          composer install --working-dir=tagore-plugins/tests/coverage --no-interaction --no-progress --prefer-dist
+      - name: PHP-Line-Coverage messen
+        run: |
+          tagore-plugins/scripts/measure-component-php-coverage \
+            flz_probeunterricht \
+            flz_probeunterricht \
+            "$GITHUB_WORKSPACE/tagore-plugins/tests/coverage/vendor/bin/phpcov" \
+            "$RUNNER_TEMP/php-coverage"

@@ -13,6 +13,9 @@ grüner Remote-Lauf, gemessene No-Regression-Coverage, ausgefüllte Browser-/
 Mail-/Zwei-Prozess-Abnahme und ein reproduzierbar geprüftes Release-Artefakt.
 Das Protokoll liegt unter `docs/manual-acceptance.md`.
 
+Der PHPCOV-/Xdebug-Job ist konfiguriert. Eine PHP-Baseline darf erst aus dem
+reproduzierbaren Remote-Lauf übernommen werden und bleibt bis dahin `pending`.
+
 ## P0
 
 1. **Erledigt:** Deaktivierung erhält Tabellen, Daten, Rolle und Capability;
