@@ -41,47 +41,25 @@ function flzpu_probeunterricht_form($atts): string
 				throw new UnexpectedValueException( 'Die Teilnehmerdaten besitzen kein gültiges Array-Format.' );
 			}
 			$school_id = isset( $participant_post['school_id'] ) ? absint( $participant_post['school_id'] ) : 0;
-			$school = FlzPuSchool::get_by_id( $school_id );
-			if ( ! $school instanceof FlzPuSchool ) {
-				throw new UnexpectedValueException( 'Die ausgewählte Grundschule wurde nicht gefunden.' );
+			$participant = FlzPuRegistrationService::register(
+				$participant_post + array( 'school_id' => $school_id )
+			);
+
+			$registration_saved = true;
+			try {
+				$participant->send_activation_email();
+				$out .= flz_ui()->notice( 'Danke, die Anmeldung und die Aktivierungs-E-Mail wurden versendet.', 'success' );
+			} catch ( Throwable $mail_error ) {
+				flzpu_log_error( $mail_error, 'Versenden der Aktivierungs-E-Mail nach gespeicherter Anmeldung' );
+				$out .= flz_ui()->notice( 'Die Anmeldung wurde gespeichert, aber die Aktivierungs-E-Mail konnte nicht versendet werden. Bitte kontaktieren Sie die Schule.', 'error' );
 			}
-			if (
-				FlzPuParticipant::count_by()
-				>= (int) FlzPuSetting::get_value_by_name( 'MaxTeilnehmerGesamt' )
-			) {
-				$out .= flz_ui()->notice( 'Die maximale Teilnehmerzahl ist bereits erreicht.', 'error' );
-			} else {
-				unset( $participant_post['school_id'] );
-				$participant = new FlzPuParticipant( array() );
-				$participant->assignPostData(
-					$participant_post,
-					array( 'name', 'firstName', 'email', 'class', 'lunch' )
-				);
-				$participant->school = $school;
-				flz_wpdb_objects\FlzWpdbTransaction::run(
-					static function () use ( $participant, $school ): void {
-						$participant->save();
-					$school->take_seat();
-					},
-					'Speichern einer Probeunterrichtsanmeldung und Reservieren des Schulplatzes'
-				);
 
-				$registration_saved = true;
-				try {
-					$participant->send_activation_email();
-					$out .= flz_ui()->notice( 'Danke, die Anmeldung und die Aktivierungs-E-Mail wurden versendet.', 'success' );
-				} catch ( Throwable $mail_error ) {
-					flzpu_log_error( $mail_error, 'Versenden der Aktivierungs-E-Mail nach gespeicherter Anmeldung' );
-					$out .= flz_ui()->notice( 'Die Anmeldung wurde gespeichert, aber die Aktivierungs-E-Mail konnte nicht versendet werden. Bitte kontaktieren Sie die Schule.', 'error' );
+			if ( ! empty( $atts['danke'] ) ) {
+				$thank_you_page_url = get_permalink( absint( $atts['danke'] ) );
+				if ( ! is_string( $thank_you_page_url ) || ! wp_safe_redirect( $thank_you_page_url ) ) {
+					throw new RuntimeException( 'Die Weiterleitung zur Danke-Seite ist fehlgeschlagen.' );
 				}
-
-				if ( ! empty( $atts['danke'] ) ) {
-					$thank_you_page_url = get_permalink( absint( $atts['danke'] ) );
-					if ( ! is_string( $thank_you_page_url ) || ! wp_safe_redirect( $thank_you_page_url ) ) {
-						throw new RuntimeException( 'Die Weiterleitung zur Danke-Seite ist fehlgeschlagen.' );
-					}
-					exit;
-				}
+				exit;
 			}
 		}
 
@@ -147,3 +125,17 @@ function flzpu_register_blocks(): void {
 }
 
 add_action( 'init', 'flzpu_register_blocks' );
+add_action('wp_enqueue_scripts', 'flzpu_maybe_enqueue_frontend_ui_assets');
+
+function flzpu_maybe_enqueue_frontend_ui_assets(): void
+{
+	global $post;
+
+	$content = is_object($post) && isset($post->post_content) ? (string) $post->post_content : '';
+	if (
+		(has_shortcode($content, 'flzpu') || has_block('flz/probeunterricht', $content))
+		&& function_exists('flz_ui_components_enqueue_assets')
+	) {
+		flz_ui_components_enqueue_assets();
+	}
+}

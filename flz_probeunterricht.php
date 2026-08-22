@@ -1,18 +1,21 @@
 <?php
 /*
 Plugin Name: FLZ Probeunterricht
-Plugin URI: Deine Plugin-URI
 Description: Probeunterricht am Tagore-Gymnasium
-Version: 1.0
+Version: 1.1.0
 Author: Filzmann
-Author URI: Deine Autor-URI
 License: GPLv2 or later
 Requires Plugins: flz_wpdb_objects, flz_ui_components
+Text Domain: flz-probeunterricht
+Requires at least: 6.5
+Requires PHP: 8.1
 */
 
 defined( 'ABSPATH' ) || exit;
 
-const FLZPU_MIN_WPDB_OBJECTS_VERSION = '1.4.0';
+const FLZPU_VERSION = '1.1.0';
+const FLZPU_DB_VERSION = '2.1.0';
+const FLZPU_MIN_WPDB_OBJECTS_VERSION = '2.0.0';
 const FLZPU_MIN_UI_COMPONENTS_VERSION = '0.1.11';
 
 function flzpu_dependencies_available(): bool {
@@ -45,9 +48,14 @@ function flzpu_bootstrap(): bool {
 	require_once plugin_dir_path( __FILE__ ) . 'classes/FlzPuSchool.php';
 	require_once plugin_dir_path( __FILE__ ) . 'classes/FlzPuParticipant.php';
 	require_once plugin_dir_path( __FILE__ ) . 'classes/FlzPuSetting.php';
+	require_once plugin_dir_path( __FILE__ ) . 'includes/class-flz-pu-registration-service.php';
+	require_once plugin_dir_path( __FILE__ ) . 'includes/class-flz-pu-schema-migrator.php';
+	require_once plugin_dir_path( __FILE__ ) . 'includes/class-flz-pu-csv-contract.php';
+	require_once plugin_dir_path( __FILE__ ) . 'includes/privacy.php';
 	require_once plugin_dir_path( __FILE__ ) . 'activate-deactivate.php';
 	require_once plugin_dir_path( __FILE__ ) . 'backend/backend.php';
 	require_once plugin_dir_path( __FILE__ ) . 'frontend.php';
+	FlzPuSchemaMigrator::maybe_upgrade();
 	$loaded = true;
 
 	return true;

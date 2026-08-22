@@ -51,12 +51,12 @@ $flzpu_school_row = static function ( FlzPuSchool $school ) use ( $flzpu_ui ): s
 					),
 				),
 				array(
-					'view'  => $school->available_seats ?? '',
+					'view'  => ($school->available_seats ?? 0) . ' frei / ' . ($school->capacity ?? 0) . ' gesamt',
 					'field' => array(
 						'type'     => 'number',
-						'name'     => 'available_seats',
-						'label'    => 'Freie Plätze',
-						'value'    => $school->available_seats ?? '',
+						'name'     => 'capacity',
+						'label'    => 'Gesamtkapazität',
+						'value'    => $school->capacity ?? '',
 						'required' => true,
 						'min'      => 0,
 					),
@@ -74,6 +74,9 @@ $flzpu_school_row = static function ( FlzPuSchool $school ) use ( $flzpu_ui ): s
 ?>
 <div class="wrap">
 	<h1>Schulen bearbeiten</h1>
+	<?php if ( ! empty( $school_csv_notice ) ) : ?>
+		<?php echo $flzpu_ui->notice( $school_csv_notice['message'], $school_csv_notice['type'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Notice. ?>
+	<?php endif; ?>
 	<p>
 		<?php echo $flzpu_ui->button_new( array( 'label' => 'Neue Schule anlegen', 'attrs' => array( 'data-flz-ui-show-new-row' => 'flzpu-school-new' ) ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
 	</p>
@@ -82,17 +85,31 @@ $flzpu_school_row = static function ( FlzPuSchool $school ) use ( $flzpu_ui ): s
 	echo $flzpu_ui->csv_panel(
 		array(
 			'title'       => 'Schulen CSV',
-			'description' => 'Download als Vorlage oder Sammel-Upload für Grundschulen und Platzanzahl.',
-			'format'      => '"Name der Schule";AnzahlPlätze',
+			'description' => 'Versionierter Roundtrip für Grundschulen und ihre Gesamtkapazität.',
+			'format'      => 'format_version; record_type; school_name; capacity',
 			'export'      => array(
-				'href'  => FlzPuSchool::get_csv_link(),
+				'href'  => $school_csv_export_url,
 				'label' => 'Schulen-CSV herunterladen',
 			),
 			'upload'      => array(
 				'nonce'        => 'flzpu_admin_action',
 				'file_name'    => 'schools-csv',
-				'file_id'      => 'schools-csv',
-				'button_label' => 'Schulen-CSV hochladen',
+				'file_id'      => 'schools-csv-dry-run',
+				'button_label' => 'Schulen-CSV prüfen (Dry-Run)',
+				'submit_name'  => 'submit_csv_dry_run',
+			),
+		)
+	);
+	echo $flzpu_ui->csv_panel(
+		array(
+			'title'       => 'Geprüfte Schulen-CSV importieren',
+			'description' => 'Nach dem Dry-Run dieselbe unveränderte Datei innerhalb von 15 Minuten erneut auswählen.',
+			'upload'      => array(
+				'nonce'        => 'flzpu_admin_action',
+				'file_name'    => 'schools-csv',
+				'file_id'      => 'schools-csv-import',
+				'button_label' => 'Geprüfte Schulen-CSV importieren',
+				'submit_name'  => 'submit_csv',
 			),
 		)
 	);
@@ -113,7 +130,7 @@ $flzpu_school_row = static function ( FlzPuSchool $school ) use ( $flzpu_ui ): s
 						</form>
 					</div>
 				</th>
-				<th><?php echo $flzpu_school_sort_link( 'Freie Plätze', 'available_seats' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped den Sortierlink. ?></th>
+				<th><?php echo $flzpu_school_sort_link( 'Plätze', 'capacity' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped den Sortierlink. ?></th>
 				<th>Aktionen</th>
 			</tr>
 		</thead>

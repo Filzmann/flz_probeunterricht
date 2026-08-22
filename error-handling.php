@@ -49,3 +49,15 @@ function flzpu_assert_admin_request(): void
 		check_admin_referer( 'flzpu_admin_action' );
 	}
 }
+
+/**
+ * Prüft Berechtigung und Nonce eines CSV-Direktdownloads.
+ */
+function flzpu_assert_csv_export_request(string $nonce_action): void
+{
+	if (!current_user_can('flz_pu')) {
+		wp_die(esc_html__('Keine Berechtigung.', 'flz-probeunterricht'));
+	}
+
+	check_admin_referer($nonce_action);
+}

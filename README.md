@@ -8,3 +8,43 @@ Härtungs- und Migrationsstand steht in `ROADMAP.md`.
 
 Prüfung: `./scripts/check-fast`. WordPress-, Datenbank-, Mail- und UI-Verhalten
 muss zusätzlich über die lokale DDEV-Instanz verifiziert werden.
+
+## Neu in 1.1.0
+
+- Deaktivierung erhält Tabellen, Daten, Rolle und Capability. Die lokale
+  Aktivieren–Deaktivieren–Aktivieren-Abnahme bewahrte 160 Teilnehmende,
+  78 Schulen und 2 Einstellungen vollständig.
+- DB-Version 2.1 migriert Legacy-Bestände additiv und idempotent. Alte Tabellen
+  werden nicht gelöscht und bleiben als Rückfallpfad erhalten.
+- Gesamt- und Schulkapazität werden bei Anmeldung, Änderung, Löschung und Reset
+  transaktional gesperrt und ausgeglichen; negative Plätze oder eine
+  parallele Überbuchung werden abgewiesen.
+- Schulen und Teilnehmende besitzen geschützte, versionierte CSV-v1-
+  Roundtrips. Ein Import benötigt einen erfolgreichen benutzer- und
+  dateigebundenen Dry-Run und wird atomar übernommen. Aktivierungstoken werden
+  weder exportiert noch importiert.
+- WordPress-Privacy-Exporter und -Eraser sowie eine optionale, standardmäßig
+  deaktivierte Aufbewahrung sind integriert. Der konfigurierbare Vorschlag
+  beträgt 24 Monate.
+- Öffentliche und administrative Eingaben werden serverseitig auf Pflichtwert,
+  E-Mail, Klasse, Schule, Status und Kapazität geprüft. UI-Assets werden nur auf
+  passenden Plugin-Seiten angefordert.
+
+## CSV-Portabilität
+
+CSV-Dateien werden ausschließlich als Capability- und Nonce-geschützte
+Direktdownloads ausgeliefert. Es entsteht keine öffentliche Datei im
+Upload-Verzeichnis. Vor dem schreibenden Import muss dieselbe unveränderte
+Datei innerhalb des vorgesehenen Prüffensters erfolgreich als Dry-Run geprüft
+werden.
+
+Der Teilnehmerimport ist ein vollständiger Snapshot: Schulreferenzen und
+Kapazitäten müssen vollständig konsistent sein. Der Status `cancelled` ist kein
+Importstatus; eine Abmeldung löscht den Datensatz und gibt den Platz frei.
+
+## Datenschutz
+
+Automatische Löschung ist standardmäßig ausgeschaltet. Wird sie bewusst
+aktiviert, sind 1 bis 120 Monate einstellbar; voreingestellt sind 24 Monate.
+Zusätzlich steht eine bestätigte manuelle Bereinigung zur Verfügung. Auskunft
+und Löschung sind in die WordPress-Datenschutzwerkzeuge eingebunden.

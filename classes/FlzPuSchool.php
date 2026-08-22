@@ -50,11 +50,15 @@ class FlzPuSchool extends FlzWpdbObject {
 
 	public string|null $name;
 	public int|null $available_seats;
+	public int|null $capacity;
 
 	public function __construct( $data ) {
 		parent::__construct($data['id']??null);
 		$this->name     = $data['name']??null;
 		$this->available_seats = $data['available_seats']??null;
+		$this->capacity = isset($data['capacity'])
+			? max(0, (int) $data['capacity'])
+			: max(0, (int) ($data['available_seats'] ?? 0));
 	}
 
 	public static function get_by_name( string $name ): object|null {
@@ -66,6 +70,7 @@ class FlzPuSchool extends FlzWpdbObject {
 			id INT(11) NOT NULL AUTO_INCREMENT,
             name VARCHAR(255) NOT NULL,
             available_seats INT(11) NOT NULL,
+			capacity INT(11) NOT NULL DEFAULT 0,
             PRIMARY KEY (id)
             )";
 	}
@@ -74,6 +79,7 @@ class FlzPuSchool extends FlzWpdbObject {
 		return [
 			'name' => $this->name,
 			'available_seats' => $this->available_seats,
+			'capacity' => $this->capacity,
 		];
 	}
 
@@ -85,7 +91,8 @@ class FlzPuSchool extends FlzWpdbObject {
 					foreach ( FlzPuSchool::example_schools as $example_school ) {
 						$school=new FlzPuSchool(array(
 							'name'     => $example_school,
-							'available_seats' => 8
+							'available_seats' => 8,
+							'capacity' => 8,
 						));
 						$school->save();
 					}
@@ -96,36 +103,24 @@ class FlzPuSchool extends FlzWpdbObject {
 	}
 
 
-	public function take_seat(): void {
-		if ( $this->available_seats === null || $this->available_seats <= 0 ) {
-			throw FlzWpdbObjectsException::invalid_model_state(
-				static::class,
-				'Für die Schule mit ID ' . (string) $this->id . ' ist kein freier Platz verfügbar.'
-			);
+	public static function get_by_id_for_update(int $id): ?self {
+		$sql = 'SELECT * FROM ' . static::table_name() . ' WHERE id = %d FOR UPDATE';
+		$models = static::query_models($sql, array($id), 'Sperren einer Grundschule für die Platzbuchung');
+
+		return $models[0] ?? null;
+	}
+
+	public function claim_seat(): void {
+		if ($this->available_seats === null || $this->available_seats <= 0) {
+			throw new UnexpectedValueException('Für die ausgewählte Grundschule ist kein freier Platz verfügbar.');
 		}
-		$this->available_seats -= 1;
+		--$this->available_seats;
 		$this->save();
 	}
 
-	public function free_seat(): void {
-		$this->available_seats += 1;
+	public function release_seat(): void {
+		++$this->available_seats;
 		$this->save();
-	}
-
-	public static function get_csv_link(): string {
-		$schools=static::get_all_by( order_by: 'name' );
-
-		return flz_wpdb_objects_create_csv_file(
-			array( 'Name', 'Freie Plätze' ),
-			array_map(
-				static fn( FlzPuSchool $school ): array => array(
-					$school->name,
-					$school->available_seats,
-				),
-				$schools
-			),
-			'schools.csv'
-		);
 	}
 
 }

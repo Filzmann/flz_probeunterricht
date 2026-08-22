@@ -12,6 +12,8 @@ class FlzPuParticipant extends FlzPerson{
 	public string|null $status;
 	public string|null $activationExpiration;
 	public string|null $activationToken;
+	public string|null $created_at;
+	public string|null $updated_at;
 
 	public function __construct(array $data	) {
 		parent::__construct($data);
@@ -21,6 +23,8 @@ class FlzPuParticipant extends FlzPerson{
 		$this->status    = $data['status']??'pending';
 		$this->activationExpiration = $data['activationExpiration']??null;
 		$this->activationToken      = $data['activationToken']??null;
+		$this->created_at           = $data['created_at'] ?? null;
+		$this->updated_at           = $data['updated_at'] ?? null;
 	}
 	protected function prepareDataForSaving(): array {
 		return [
@@ -32,7 +36,9 @@ class FlzPuParticipant extends FlzPerson{
 			'school_id' => $this->school->id,
 			'status'=> $this->status,
 			'activationExpiration' => $this->activationExpiration,
-			'activationToken' => $this->activationToken
+			'activationToken' => $this->activationToken,
+			'created_at' => $this->created_at,
+			'updated_at' => $this->updated_at,
 		];
 	}
 
@@ -48,26 +54,30 @@ class FlzPuParticipant extends FlzPerson{
 	        status VARCHAR(25) DEFAULT 'pending',
 	        activationExpiration TIMESTAMP,
 	        activationToken VARCHAR(255) NULL,
-	        PRIMARY KEY (id),
-	        FOREIGN KEY (school_id) REFERENCES " . FlzPuSchool::table_name() . "(id)
+	        created_at DATETIME NULL,
+	        updated_at DATETIME NULL,
+	        PRIMARY KEY (id)
         )
         ";
 	}
 
+	public static function get_by_id_for_update(int $id): ?self {
+		$sql = 'SELECT * FROM ' . static::table_name() . ' WHERE id = %d FOR UPDATE';
+		$models = static::query_models($sql, array($id), 'Sperren eines Probeunterrichtsteilnehmenden');
+
+		return $models[0] ?? null;
+	}
+
+	/** @return array<int,self> */
+	public static function find_expired(string $cutoff): array {
+		$sql = 'SELECT * FROM ' . static::table_name()
+			. ' WHERE created_at IS NOT NULL AND created_at < %s ORDER BY id ASC';
+
+		return static::query_models($sql, array($cutoff), 'Laden abgelaufener Probeunterrichtsanmeldungen');
+	}
+
 	public static function reset( int $new_available_seats = 8 ): void {
-		flz_wpdb_objects\FlzWpdbTransaction::run(
-			static function () use ( $new_available_seats ): void {
-				foreach ( FlzPuParticipant::get_all_by() as $participant ) {
-					$participant->delete();
-				}
-				$schools = FlzPuSchool::get_all_by();
-				foreach ( $schools as $school ) {
-					$school->available_seats = max( 0, $new_available_seats );
-					$school->save();
-				}
-			},
-			'Leeren der Probeunterrichtsteilnehmer und Zurücksetzen der Schulplätze'
-		);
+		FlzPuRegistrationService::reset($new_available_seats);
 	}
 
 	public function generate_activation_link(): string {
