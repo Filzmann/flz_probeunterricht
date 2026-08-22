@@ -25,3 +25,24 @@ Beobachtbare Änderungen testgetrieben umsetzen. Sicherheitsgrenzen brauchen
 Allow-/Deny- und Rollbackfälle. Mindestens `./scripts/check-fast` ausführen;
 WordPress-/DDEV-Prüfung separat benennen. Keine Commits, Pushes, Aktivierungen,
 Imports oder Deployments ohne ausdrückliche Freigabe; nie `git add .` verwenden.
+
+## Commit-, Coverage- und Release-Gates
+
+- Der aktuelle Übernahmestand ist Phase 0: normale Produkt- und Releasecommits
+  bleiben blockiert; ausdrücklich beauftragte Quality-Rollout-Commits dürfen
+  die fehlende Infrastruktur schrittweise herstellen.
+- Vor einem späteren normalen Commit sind Status, Diff-Statistik und vollständige
+  Dateiliste zu zeigen; fokussierte Tests, `./scripts/check-fast`, Shared-
+  Provider-/Consumer-Tests, CI und Coverage-Gates müssen grün sein. Dateien
+  werden einzeln gestaged; `git add .` bleibt verboten.
+- PHP-Line-Coverage wird gegen eine gemessene No-Regression-Baseline geprüft.
+  Neuer oder wesentlich geänderter Code erreicht mindestens 85 Prozent;
+  Sicherheits-, Datenschutz-, Migrations- und Kapazitätsinvarianten sind
+  unabhängig davon vollständig abgedeckt.
+- Ein Fast- oder Diagnosecheck ist kein Releaseurteil. Ein Release braucht ein
+  sauberes Repository, konsistente Version/Changelog/Lizenz, vollständig
+  ausgefülltes `docs/manual-acceptance.md`, ein reproduzierbares Ein-Wurzel-
+  Archiv, Manifest und SHA-256 sowie geprüfte Installation, Upgrade,
+  Deaktivierung, Datenschutz, sichtbare UI und Rückbau aus dem Artefakt.
+- Bauen, Signieren, Taggen, Pushen, Publizieren und Deployen bleiben getrennte,
+  ausdrücklich zu autorisierende Aktionen.

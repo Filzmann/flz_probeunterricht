@@ -2,12 +2,15 @@
 
 ## Prüfstatus
 
-**Release Candidate 1.1.0 / keine offenen P0-Befunde.** Nichtdestruktive
+**Funktionsstand 1.1.0 ohne offene P0-Befunde; Release-Gate in
+Übernahmephase 0 blockiert.** Nichtdestruktive
 Deaktivierung, geschützte CSV-Roundtrips, atomare Kapazitätsbilanz, additive
 Legacy-Migration, Datenschutz und Fachvalidierung sind implementiert und durch
 fokussierte Smokes abgesichert. Die reale lokale Bestandsmigration sowie
-Aktivieren–Deaktivieren–Aktivieren wurden erfolgreich geprüft. Browser-, Mail-
-und echte parallele Zwei-Prozess-Anfragen bleiben Release-Nachweislücken.
+Aktivieren–Deaktivieren–Aktivieren wurden erfolgreich geprüft. Vor einem Tag
+fehlen CI, gemessene No-Regression-Coverage, ausgefüllte Browser-/Mail-/
+Zwei-Prozess-Abnahme und ein reproduzierbar geprüftes Release-Artefakt. Das
+Protokoll liegt unter `docs/manual-acceptance.md`.
 
 ## P0
 

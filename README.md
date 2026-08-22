@@ -9,6 +9,11 @@ Härtungs- und Migrationsstand steht in `ROADMAP.md`.
 Prüfung: `./scripts/check-fast`. WordPress-, Datenbank-, Mail- und UI-Verhalten
 muss zusätzlich über die lokale DDEV-Instanz verifiziert werden.
 
+Der BR-starke Commit-/Coverage-/Releasevertrag wird schrittweise übernommen;
+bis zum grünen lokalen Gate bleibt ein Release blockiert. Das ausfüllbare
+[Abnahmeprotokoll](docs/manual-acceptance.md) führt Installation, Upgrade,
+Kapazität, CSV, Datenschutz, Oberfläche und Rückbau zusammen.
+
 ## Neu in 1.1.0
 
 - Deaktivierung erhält Tabellen, Daten, Rolle und Capability. Die lokale
