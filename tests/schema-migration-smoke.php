@@ -27,7 +27,7 @@ if ( false === $migration ) {
 
 foreach (
 	array(
-		"const FLZPU_VERSION = '1.1.0'"            => $bootstrap,
+		"const FLZPU_VERSION = '1.1.1'"            => $bootstrap,
 		"const FLZPU_DB_VERSION = '2.1.0'"         => $bootstrap,
 		'FlzPuSchemaMigrator::maybe_upgrade()'      => $activation,
 		'created_at DATETIME NULL'                  => $participant,

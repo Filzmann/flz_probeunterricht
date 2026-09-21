@@ -90,10 +90,11 @@ class FlzPuParticipant extends FlzPerson{
 		// Baue den Aktivierungslink
 		return add_query_arg(
 			array(
+				'flzpu_activate' => '1',
 				'id' => $this->id,
 				'token' => $this->activationToken,
 			),
-			get_permalink()
+			home_url( '/' )
 		);
 	}
 

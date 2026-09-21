@@ -21,6 +21,12 @@ Ein sauberer Commit wird reproduzierbar paketiert mit:
 ./scripts/build-release /tmp/flz_probeunterricht-release
 ```
 
+## Neu in 1.1.1
+
+- Aktivierungslinks verarbeiten die Bestätigung über einen festen
+  Frontend-Endpunkt und sind nicht mehr von der jeweiligen Anmeldeseite
+  abhängig.
+
 ## Neu in 1.1.0
 
 - Deaktivierung erhält Tabellen, Daten, Rolle und Capability. Die lokale

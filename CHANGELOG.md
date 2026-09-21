@@ -6,6 +6,11 @@ ergänzt.
 
 ## Unreleased
 
+## 1.1.1 – 2026-09-21
+
+- Aktivierungslinks verwenden einen festen, signierten Frontend-Endpunkt und
+  funktionieren dadurch unabhängig von der Seite mit dem Anmelde-Shortcode.
+
 - Reproduzierbare PR-/Main-CI für PHP 8.1 und 8.5 ergänzt.
 - Branchgleicher Checkout beider Shared-Plugins mit sicherem `main`-Fallback
   ergänzt.
