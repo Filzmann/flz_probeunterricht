@@ -2,17 +2,17 @@
 
 ## Prüfstatus
 
-**Funktionsstand 1.1.0 ohne offene P0-Befunde; Release-Gate in
-Übernahmephase 2 blockiert.** Nichtdestruktive
+**Funktionsstand 1.1.1 ohne offene P0-Befunde; Release-Gate in
+Übernahmephase 5 bereit.** Nichtdestruktive
 Deaktivierung, geschützte CSV-Roundtrips, atomare Kapazitätsbilanz, additive
 Legacy-Migration, Datenschutz und Fachvalidierung sind implementiert und durch
 fokussierte Smokes abgesichert. Die reale lokale Bestandsmigration sowie
 Aktivieren–Deaktivieren–Aktivieren wurden erfolgreich geprüft. PR-/Main-CI,
 branchgleiche Shared-Plugins und die PHP-Ratsche von 8,16 Prozent sind remote
-enforced. Der reproduzierbare ZIP-Builder ist konfiguriert. Vor einem Tag
-fehlen die schrittweise Annäherung an 85 Prozent, die Browser-/Mail-/Zwei-
-Prozess-Abnahme sowie Installation, Upgrade und Rückbau aus dem exakten
-Artefakt. Das Protokoll liegt unter `docs/manual-acceptance.md`.
+enforced. Das reproduzierbare ZIP-Artefakt, Installation, Upgrade,
+Deaktivierung und Rückbau wurden abgenommen; das Protokoll liegt unter
+`docs/manual-acceptance.md`. Die verbleibenden P2-Verbesserungen sind keine
+Releaseblocker für 1.1.1.
 
 ## P0
 
