@@ -28,7 +28,7 @@ Imports oder Deployments ohne ausdrückliche Freigabe; nie `git add .` verwenden
 
 ## Commit-, Coverage- und Release-Gates
 
-- Der aktuelle Übernahmestand ist Phase 2: PR-/Main-CI, branchgleiche
+- Der aktuelle Übernahmestand ist Phase 5: PR-/Main-CI, branchgleiche
   Provider-Checkouts und die PHP-Coverage-Ratsche sind remote belegt. Normale
   Produktcommits brauchen das enforced Commit-Gate; Releasecommits bleiben bis
   zur Abnahme und zum reproduzierbaren Artefakt-Gate blockiert.
