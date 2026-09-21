@@ -1,0 +1,143 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  php:
+    name: PHP ${{ matrix.php-version }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        php-version: ['8.1', '8.5']
+    steps:
+      - name: Plugin auschecken
+        uses: actions/checkout@v7
+        with:
+          path: flz_probeunterricht
+      - name: flz_wpdb_objects-Referenz bestimmen
+        id: wpdb-ref
+        env:
+          CANDIDATE_REF: ${{ github.head_ref || github.ref_name }}
+        run: |
+          if git ls-remote --exit-code --heads https://github.com/Filzmann/flz_wpdb_objects.git "refs/heads/$CANDIDATE_REF" >/dev/null 2>&1; then
+            echo "ref=$CANDIDATE_REF" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=main" >> "$GITHUB_OUTPUT"
+          fi
+      - name: flz_wpdb_objects auschecken
+        uses: actions/checkout@v7
+        with:
+          repository: Filzmann/flz_wpdb_objects
+          ref: ${{ steps.wpdb-ref.outputs.ref }}
+          path: flz_wpdb_objects
+      - name: flz_ui_components-Referenz bestimmen
+        id: ui-ref
+        env:
+          CANDIDATE_REF: ${{ github.head_ref || github.ref_name }}
+        run: |
+          if git ls-remote --exit-code --heads https://github.com/Filzmann/flz_ui_components.git "refs/heads/$CANDIDATE_REF" >/dev/null 2>&1; then
+            echo "ref=$CANDIDATE_REF" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=main" >> "$GITHUB_OUTPUT"
+          fi
+      - name: flz_ui_components auschecken
+        uses: actions/checkout@v7
+        with:
+          repository: Filzmann/flz_ui_components
+          ref: ${{ steps.ui-ref.outputs.ref }}
+          path: flz_ui_components
+      - name: PHP einrichten
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          coverage: none
+          tools: composer:v2
+      - name: Gesperrte Entwicklungsabhängigkeiten installieren
+        run: composer install --working-dir=flz_probeunterricht --no-interaction --no-progress --prefer-dist
+      - name: Komponentenprüfungen
+        working-directory: flz_probeunterricht
+        run: ./scripts/check-fast
+
+  coverage:
+    name: PHP-Coverage
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Plugin auschecken
+        uses: actions/checkout@v7
+        with:
+          path: flz_probeunterricht
+      - name: Quality-Workspace-Referenz bestimmen
+        id: quality-ref
+        env:
+          CANDIDATE_REF: ${{ github.head_ref || github.ref_name }}
+        run: |
+          if git ls-remote --exit-code --heads https://github.com/Filzmann/tagore-plugins.git "refs/heads/$CANDIDATE_REF" >/dev/null 2>&1; then
+            echo "ref=$CANDIDATE_REF" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=main" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Quality-Workspace auschecken
+        uses: actions/checkout@v7
+        with:
+          repository: Filzmann/tagore-plugins
+          ref: ${{ steps.quality-ref.outputs.ref }}
+          path: tagore-plugins
+      - name: PHP mit Xdebug einrichten
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: xdebug
+          extensions: mbstring
+          tools: composer:v2
+      - name: Gesperrte Coverage-Werkzeuge installieren
+        run: |
+          composer install --working-dir=flz_probeunterricht --no-interaction --no-progress --prefer-dist
+          composer install --working-dir=tagore-plugins/tests/coverage --no-interaction --no-progress --prefer-dist
+      - name: PHP-Line-Coverage messen
+        run: |
+          tagore-plugins/scripts/measure-component-php-coverage \
+            flz_probeunterricht \
+            flz_probeunterricht \
+            "$GITHUB_WORKSPACE/tagore-plugins/tests/coverage/vendor/bin/phpcov" \
+            "$RUNNER_TEMP/php-coverage"
+
+  release:
+    name: Release-Artefakt
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Plugin auschecken
+        uses: actions/checkout@v7
+        with:
+          path: flz_probeunterricht
+      - name: Quality-Workspace-Referenz bestimmen
+        id: release-quality-ref
+        env:
+          CANDIDATE_REF: ${{ github.head_ref || github.ref_name }}
+        run: |
+          if git ls-remote --exit-code --heads https://github.com/Filzmann/tagore-plugins.git "refs/heads/$CANDIDATE_REF" >/dev/null 2>&1; then
+            echo "ref=$CANDIDATE_REF" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=main" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Quality-Workspace auschecken
+        uses: actions/checkout@v7
+        with:
+          repository: Filzmann/tagore-plugins
+          ref: ${{ steps.release-quality-ref.outputs.ref }}
+          path: tagore-plugins
+      - name: Reproduzierbares Release-Artefakt prüfen
+        run: tagore-plugins/scripts/verify-component-release flz_probeunterricht flz_probeunterricht "$RUNNER_TEMP/release-verification"

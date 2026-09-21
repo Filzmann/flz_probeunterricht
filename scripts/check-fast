@@ -17,6 +17,14 @@ if compgen -G 'tests/*-smoke.php' >/dev/null; then
 	done
 fi
 
+if compgen -G 'tests/*-contract.php' >/dev/null; then
+	echo
+	echo "=== Component contract tests ==="
+	for test_file in tests/*-contract.php; do
+		php "$test_file"
+	done
+fi
+
 if [[ -x vendor/bin/phpcs ]]; then
 	echo
 	echo "=== PHPCS security baseline ==="

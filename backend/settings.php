@@ -25,18 +25,41 @@ function flzpu_settings_page_content(): void
 		$posted_settings = map_deep(wp_unslash($_POST['settings']), 'sanitize_text_field');
 		flz_wpdb_objects\FlzWpdbTransaction::run(
 			static function () use ($posted_settings): void {
+				FlzPuSetting::lock_capacity_limit();
+				$participant_count = FlzPuParticipant::count_by();
 				foreach ((array) $posted_settings as $id => $value) {
 					$setting = FlzPuSetting::get_by_id(absint($id));
 					if (!$setting instanceof FlzPuSetting) {
 						throw new UnexpectedValueException('Eine zu speichernde Einstellung wurde nicht gefunden.');
 					}
-					$setting->value = $value;
+					if (!ctype_digit((string) $value)) {
+						throw new UnexpectedValueException('Kapazitätseinstellungen müssen nichtnegative Ganzzahlen sein.');
+					}
+					$numeric_value = (int) $value;
+					if ('MaxTeilnehmerGesamt' === $setting->name && $numeric_value < $participant_count) {
+						throw new UnexpectedValueException('Die Gesamtkapazität darf nicht unter der aktuellen Teilnehmerzahl liegen.');
+					}
+					if ('MaxTeilnehmerProSchule' === $setting->name && ($numeric_value < 1 || $numeric_value > 10000)) {
+						throw new UnexpectedValueException('Die Standardkapazität pro Grundschule muss zwischen 1 und 10000 liegen.');
+					}
+					$setting->value = (string) $numeric_value;
 					$setting->save();
 				}
 			},
 			'Speichern der Probeunterrichts-Einstellungen'
 		);
 		$settings_notice = 'Einstellungen gespeichert.';
+	}
+
+	if (isset($_POST['flzpu_privacy_settings'])) {
+		$retention_enabled = isset($_POST['flzpu_retention_enabled']) ? 1 : 0;
+		$retention_months = isset($_POST['flzpu_retention_months'])
+			? max(1, min(120, absint(wp_unslash($_POST['flzpu_retention_months']))))
+			: 24;
+		$retention_enabled ? flzpu_schedule_privacy_cleanup() : flzpu_unschedule_privacy_cleanup();
+		update_option('flzpu_retention_enabled', $retention_enabled, false);
+		update_option('flzpu_retention_months', $retention_months, false);
+		$settings_notice = 'Datenschutz- und Aufbewahrungseinstellungen gespeichert.';
 	}
 
 	if (isset($_POST['flzpu_install_demo'])) {
@@ -49,6 +72,9 @@ function flzpu_settings_page_content(): void
 	}
 
 	$settings = FlzPuSetting::get_all_by();
+	$retention_enabled = (bool) get_option('flzpu_retention_enabled', 0);
+	$retention_months = flzpu_retention_months();
+	$privacy_deleted = isset($_GET['privacy_deleted']) ? absint(wp_unslash($_GET['privacy_deleted'])) : null;
 	include dirname(__DIR__) . '/templates/settings.php';
 }
 
@@ -69,6 +95,7 @@ function flzpu_install_demo_content(): array
 
 	flz_wpdb_objects\FlzWpdbTransaction::run(
 		static function () use (&$result): void {
+			$maximum = FlzPuSetting::lock_capacity_limit();
 			$schools = flzpu_ensure_demo_schools(3, $result);
 			$demo_participants = array(
 				array('name' => 'Demo-Kind', 'firstName' => 'Mia', 'email' => 'demo.probeunterricht.mia@example.test', 'class' => '6a', 'lunch' => true, 'status' => 'active'),
@@ -81,16 +108,25 @@ function flzpu_install_demo_content(): array
 				if ($participant instanceof FlzPuParticipant) {
 					continue;
 				}
+				if (FlzPuParticipant::count_by() >= $maximum) {
+					throw new UnexpectedValueException('Die Demo-Daten würden die globale Probeunterrichtskapazität überschreiten.');
+				}
 
-				$school = $schools[$index % count($schools)];
+				$school = FlzPuSchool::get_by_id_for_update((int) $schools[$index % count($schools)]->id);
+				if (!$school instanceof FlzPuSchool) {
+					throw new UnexpectedValueException('Eine Demo-Grundschule wurde nicht gefunden.');
+				}
 				if ($school->available_seats === null || $school->available_seats <= 0) {
-					$school->available_seats = max(1, (int) FlzPuSetting::get_value_by_name('MaxTeilnehmerProSchule'));
+					$school->capacity = max(1, (int) FlzPuSetting::get_value_by_name('MaxTeilnehmerProSchule'));
+					$school->available_seats = $school->capacity;
 					$school->save();
 				}
-				$school->take_seat();
+				$school->claim_seat();
 				$participant_data['school'] = $school;
 				$participant_data['activationExpiration'] = null;
 				$participant_data['activationToken'] = null;
+				$participant_data['created_at'] = current_time('mysql');
+				$participant_data['updated_at'] = current_time('mysql');
 				(new FlzPuParticipant($participant_data))->save();
 				$result['participants']++;
 			}
