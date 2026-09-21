@@ -49,4 +49,4 @@ if ( false === $success_start || false === $save_position || false === $deny_sta
 	throw new RuntimeException( 'Ein ungültiger oder abgelaufener Token könnte den Teilnehmerstatus verändern.' );
 }
 
-echo "OK: flz_probeunterricht activation link contract smoke test\n";
+echo "OK: flz_probeunterricht activation link contract test\n";
