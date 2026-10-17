@@ -148,42 +148,6 @@ $flzpu_new_participant->school = new FlzPuSchool( array() );
 		<?php echo $flzpu_ui->button_new( array( 'label' => 'Neuen Teilnehmer anlegen', 'attrs' => array( 'data-flz-ui-show-new-row' => 'flzpu-participant-new' ) ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
 	</p>
 
-	<?php
-	// phpcs:disable WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die CSV-Komponente inklusive URL und Labels.
-	echo $flzpu_ui->csv_panel(
-		array(
-			'title'       => 'Teilnehmerliste CSV',
-			'description' => 'Versionierter vollständiger Snapshot ohne Aktivierungstoken. Ein Import ersetzt die Teilnehmerdaten erst nach erfolgreichem Dry-Run.',
-			'format'      => 'format_version; record_type; last_name; first_name; class; email; school_name; lunch; status; created_at',
-			'export'      => array(
-				'href'  => $participant_csv_export_url,
-				'label' => 'Teilnehmerliste herunterladen',
-			),
-			'upload'      => array(
-				'nonce'        => 'flzpu_admin_action',
-				'file_name'    => 'participants-csv',
-				'file_id'      => 'participants-csv-dry-run',
-				'button_label' => 'Teilnehmenden-CSV prüfen (Dry-Run)',
-				'submit_name'  => 'submit_csv_dry_run',
-			),
-		)
-	);
-	echo $flzpu_ui->csv_panel(
-		array(
-			'title'       => 'Geprüfte Teilnehmenden-CSV importieren',
-			'description' => 'Nach dem Dry-Run dieselbe unveränderte Datei innerhalb von 15 Minuten erneut auswählen.',
-			'upload'      => array(
-				'nonce'        => 'flzpu_admin_action',
-				'file_name'    => 'participants-csv',
-				'file_id'      => 'participants-csv-import',
-				'button_label' => 'Geprüften Snapshot importieren',
-				'submit_name'  => 'submit_csv',
-			),
-		)
-	);
-	// phpcs:enable WordPress.Security.EscapeOutput.OutputNotEscaped
-	?>
-
 	<table class="widefat striped flz-ui-admin-table">
 		<thead>
 			<tr>
@@ -290,6 +254,14 @@ $flzpu_new_participant->school = new FlzPuSchool( array() );
 				<?php echo $flzpu_ui->button( array( 'href' => admin_url( 'admin.php?page=flzpu_participants' ), 'label' => 'Filter zurücksetzen', 'variant' => 'secondary' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
 			</p>
 		<?php endif; ?>
+		<?php
+		// phpcs:disable WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die CSV-Komponente inklusive URL und Labels.
+		echo '<div class="flz-ui-card-grid flzpu-csv-grid">';
+		echo $flzpu_ui->csv_panel( array( 'title' => 'Teilnehmerliste CSV', 'description' => 'Versionierter vollständiger Snapshot ohne Aktivierungstoken. Ein Import ersetzt die Teilnehmerdaten erst nach erfolgreichem Dry-Run.', 'format' => 'format_version; record_type; last_name; first_name; class; email; school_name; lunch; status; created_at', 'export' => array( 'href' => $participant_csv_export_url, 'label' => 'Teilnehmerliste herunterladen' ), 'upload' => array( 'nonce' => 'flzpu_admin_action', 'file_name' => 'participants-csv', 'file_id' => 'participants-csv-dry-run', 'button_label' => 'Teilnehmenden-CSV prüfen (Dry-Run)', 'submit_name' => 'submit_csv_dry_run' ) ) );
+		echo $flzpu_ui->csv_panel( array( 'title' => 'Geprüfte Teilnehmenden-CSV importieren', 'description' => 'Nach dem Dry-Run dieselbe unveränderte Datei innerhalb von 15 Minuten erneut auswählen.', 'upload' => array( 'nonce' => 'flzpu_admin_action', 'file_name' => 'participants-csv', 'file_id' => 'participants-csv-import', 'button_label' => 'Geprüften Snapshot importieren', 'submit_name' => 'submit_csv' ) ) );
+		echo '</div>';
+		// phpcs:enable WordPress.Security.EscapeOutput.OutputNotEscaped
+		?>
 
 		<h2>Teilnehmerliste löschen und verfügbare Plätze zurücksetzen</h2>
 		<?php echo $flzpu_ui->form_start( array( 'method' => 'post', 'nonce' => 'flzpu_admin_action' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped das Formular. ?>

@@ -80,41 +80,6 @@ $flzpu_school_row = static function ( FlzPuSchool $school ) use ( $flzpu_ui ): s
 	<p>
 		<?php echo $flzpu_ui->button_new( array( 'label' => 'Neue Schule anlegen', 'attrs' => array( 'data-flz-ui-show-new-row' => 'flzpu-school-new' ) ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
 	</p>
-	<?php
-	// phpcs:disable WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die CSV-Komponente inklusive URL, Labels und Formularfeldern.
-	echo $flzpu_ui->csv_panel(
-		array(
-			'title'       => 'Schulen CSV',
-			'description' => 'Versionierter Roundtrip für Grundschulen und ihre Gesamtkapazität.',
-			'format'      => 'format_version; record_type; school_name; capacity',
-			'export'      => array(
-				'href'  => $school_csv_export_url,
-				'label' => 'Schulen-CSV herunterladen',
-			),
-			'upload'      => array(
-				'nonce'        => 'flzpu_admin_action',
-				'file_name'    => 'schools-csv',
-				'file_id'      => 'schools-csv-dry-run',
-				'button_label' => 'Schulen-CSV prüfen (Dry-Run)',
-				'submit_name'  => 'submit_csv_dry_run',
-			),
-		)
-	);
-	echo $flzpu_ui->csv_panel(
-		array(
-			'title'       => 'Geprüfte Schulen-CSV importieren',
-			'description' => 'Nach dem Dry-Run dieselbe unveränderte Datei innerhalb von 15 Minuten erneut auswählen.',
-			'upload'      => array(
-				'nonce'        => 'flzpu_admin_action',
-				'file_name'    => 'schools-csv',
-				'file_id'      => 'schools-csv-import',
-				'button_label' => 'Geprüfte Schulen-CSV importieren',
-				'submit_name'  => 'submit_csv',
-			),
-		)
-	);
-	// phpcs:enable WordPress.Security.EscapeOutput.OutputNotEscaped
-	?>
 	<table class="widefat striped flz-ui-admin-table">
 		<thead>
 			<tr>
@@ -146,4 +111,12 @@ $flzpu_school_row = static function ( FlzPuSchool $school ) use ( $flzpu_ui ): s
 			<?php echo $flzpu_ui->button( array( 'href' => admin_url( 'admin.php?page=flzpu_schools' ), 'label' => 'Filter zurücksetzen', 'variant' => 'secondary' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
 		</p>
 	<?php endif; ?>
+	<?php
+	// phpcs:disable WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die CSV-Komponente inklusive URL, Labels und Formularfeldern.
+	echo '<div class="flz-ui-card-grid flzpu-csv-grid">';
+	echo $flzpu_ui->csv_panel( array( 'title' => 'Schulen CSV', 'description' => 'Versionierter Roundtrip für Grundschulen und ihre Gesamtkapazität.', 'format' => 'format_version; record_type; school_name; capacity', 'export' => array( 'href' => $school_csv_export_url, 'label' => 'Schulen-CSV herunterladen' ), 'upload' => array( 'nonce' => 'flzpu_admin_action', 'file_name' => 'schools-csv', 'file_id' => 'schools-csv-dry-run', 'button_label' => 'Schulen-CSV prüfen (Dry-Run)', 'submit_name' => 'submit_csv_dry_run' ) ) );
+	echo $flzpu_ui->csv_panel( array( 'title' => 'Geprüfte Schulen-CSV importieren', 'description' => 'Nach dem Dry-Run dieselbe unveränderte Datei innerhalb von 15 Minuten erneut auswählen.', 'upload' => array( 'nonce' => 'flzpu_admin_action', 'file_name' => 'schools-csv', 'file_id' => 'schools-csv-import', 'button_label' => 'Geprüfte Schulen-CSV importieren', 'submit_name' => 'submit_csv' ) ) );
+	echo '</div>';
+	// phpcs:enable WordPress.Security.EscapeOutput.OutputNotEscaped
+	?>
 </div>

@@ -102,4 +102,13 @@ if (!str_contains($templates, 'Dry-Run')) {
 	throw new RuntimeException('Die Adminoberfläche bietet keinen obligatorischen CSV-Dry-Run an.');
 }
 
+foreach (array('schools.php', 'participants.php') as $template_name) {
+	$template = file_get_contents(dirname(__DIR__) . '/templates/' . $template_name);
+	$csv_grid_position = strpos($template, 'flz-ui-card-grid flzpu-csv-grid');
+	$table_position = strpos($template, '<table class="widefat striped flz-ui-admin-table">');
+	if (false === $csv_grid_position || false === $table_position || $table_position >= $csv_grid_position) {
+		throw new RuntimeException('Der CSV-Bereich muss als responsives Raster unter der Haupttabelle stehen: ' . $template_name);
+	}
+}
+
 echo "OK: flz_probeunterricht CSV roundtrip contract smoke test\n";
