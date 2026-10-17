@@ -17,10 +17,11 @@
                 <th>Wert</th>
             </tr>
             <?php foreach ( $settings as $setting ) : ?>
+				<?php $flzpu_setting_args = flzpu_setting_input_args( (string) $setting->name, (string) $setting->value ); ?>
                 <tr>
 	                    <td><?php echo esc_html( $setting->name ); ?></td>
                     <td>
-						<?php echo $flzpu_ui->input( 'text', array( 'name' => 'settings[' . $setting->id . ']', 'label' => $setting->name, 'value' => $setting->value, 'required' => true ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
+						<?php echo $flzpu_ui->input( (string) $flzpu_setting_args['type'], array_merge( $flzpu_setting_args, array( 'name' => 'settings[' . $setting->id . ']', 'label' => (string) $setting->name, 'required' => true ) ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
                     </td>
 
                 </tr>
@@ -40,7 +41,8 @@
 			<?php echo $flzpu_ui->button_save( array( 'label' => 'Aufbewahrungseinstellungen speichern' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped den Button. ?>
 		<?php echo $flzpu_ui->form_end(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped das Formularende. ?>
 
-		<?php echo $flzpu_ui->form_start( array( 'method' => 'post', 'action' => admin_url( 'admin-post.php' ), 'nonce' => 'flzpu_delete_expired_participants', 'hidden' => array( 'action' => 'flzpu_delete_expired_participants', 'confirm_delete_expired_participants' => '1' ) ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped das Formular. ?>
+		<?php echo $flzpu_ui->form_start( array( 'method' => 'post', 'action' => admin_url( 'admin-post.php' ), 'nonce' => 'flzpu_delete_expired_participants', 'hidden' => array( 'action' => 'flzpu_delete_expired_participants' ) ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped das Formular. ?>
+			<?php echo $flzpu_ui->field( array( 'type' => 'checkbox', 'name' => 'confirm_delete_expired_participants', 'checkbox_value' => '1', 'label' => 'Ich bestätige die endgültige Löschung aller abgelaufenen Anmeldungen.', 'required' => true ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
 			<?php echo $flzpu_ui->button_delete( array( 'label' => 'Jetzt abgelaufene Anmeldungen löschen', 'confirm' => 'Sollen alle Anmeldungen außerhalb der gewählten Aufbewahrungsfrist endgültig gelöscht werden?' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped den Button. ?>
 		<?php echo $flzpu_ui->form_end(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped das Formularende. ?>
 	</div>

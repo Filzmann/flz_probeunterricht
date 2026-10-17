@@ -79,6 +79,27 @@ function flzpu_settings_page_content(): void
 }
 
 /**
+ * Returns the UI Components field contract for a persisted capacity setting.
+ *
+ * @return array<string,int|string>
+ */
+function flzpu_setting_input_args(string $name, string $value): array
+{
+	$args = array(
+		'type'  => 'number',
+		'value' => $value,
+		'min'   => 0,
+	);
+
+	if ('MaxTeilnehmerProSchule' === $name) {
+		$args['min'] = 1;
+		$args['max'] = 10000;
+	}
+
+	return $args;
+}
+
+/**
  * Legt kleine, klar erkennbare Demo-Daten für lokale Tests an.
  *
  * Vorhandene Schulen werden bevorzugt genutzt. Demo-Teilnehmer*innen werden

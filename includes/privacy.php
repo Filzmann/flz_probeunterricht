@@ -141,7 +141,7 @@ function flzpu_handle_manual_privacy_cleanup(): void
 		wp_die(esc_html__('Keine Berechtigung.', 'flz-probeunterricht'));
 	}
 	check_admin_referer('flzpu_delete_expired_participants');
-	if (!isset($_POST['confirm_delete_expired_participants'])) {
+	if (!isset($_POST['confirm_delete_expired_participants']) || '1' !== sanitize_text_field(wp_unslash($_POST['confirm_delete_expired_participants']))) {
 		wp_die(esc_html__('Die ausdrückliche Löschbestätigung fehlt.', 'flz-probeunterricht'));
 	}
 
