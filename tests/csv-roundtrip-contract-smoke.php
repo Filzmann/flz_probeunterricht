@@ -28,7 +28,7 @@ require_once $contract_file;
 
 $schools = FlzPuCsvContract::parse_schools(array(
 	FlzPuCsvContract::school_header(),
-	array(FlzPuCsvContract::VERSION, 'school', 'Beispiel-Grundschule', '12'),
+	array('Beispiel-Grundschule', '12'),
 ));
 if (12 !== $schools[0]['capacity']) {
 	throw new RuntimeException('Die Schulkapazität geht im CSV-Roundtrip verloren.');
@@ -37,8 +37,6 @@ if (12 !== $schools[0]['capacity']) {
 $participants = FlzPuCsvContract::parse_participants(array(
 	FlzPuCsvContract::participant_header(),
 	array(
-		FlzPuCsvContract::VERSION,
-		'participant',
 		'Beispiel',
 		'Mia',
 		'6a',
@@ -55,7 +53,7 @@ if ('mia@example.test' !== $participants[0]['email'] || true !== $participants[0
 
 $invalid = array(
 	FlzPuCsvContract::participant_header(),
-	array(FlzPuCsvContract::VERSION, 'participant', 'Beispiel', 'Mia', '6a', 'keine-mail', 'Schule', '0', 'pending', '2026-08-01 10:00:00'),
+	array('Beispiel', 'Mia', '6a', 'keine-mail', 'Schule', '0', 'pending', '2026-08-01 10:00:00'),
 );
 try {
 	FlzPuCsvContract::parse_participants($invalid);
@@ -66,7 +64,7 @@ try {
 
 $cancelled = array(
 	FlzPuCsvContract::participant_header(),
-	array(FlzPuCsvContract::VERSION, 'participant', 'Beispiel', 'Mia', '6a', 'mia@example.test', 'Schule', '0', 'cancelled', '2026-08-01 10:00:00'),
+	array('Beispiel', 'Mia', '6a', 'mia@example.test', 'Schule', '0', 'cancelled', '2026-08-01 10:00:00'),
 );
 try {
 	FlzPuCsvContract::parse_participants($cancelled);
@@ -86,7 +84,7 @@ $templates = file_get_contents(dirname(__DIR__) . '/templates/participants.php')
 $combined = $participants_source . $schools_source;
 foreach (
 	array(
-		"isset(\$_POST['submit_csv_dry_run'])",
+		"isset(\$_POST['csv_dry_run'])",
 		'FlzPuCsvContract::parse_schools',
 		'FlzPuCsvContract::parse_participants',
 		'FlzWpdbTransaction::run',
@@ -98,13 +96,13 @@ foreach (
 		throw new RuntimeException('Der sichere CSV-Importvertrag fehlt: ' . $required);
 	}
 }
-if (!str_contains($templates, 'Dry-Run')) {
+if (!str_contains($templates, 'Import zuerst prüfen')) {
 	throw new RuntimeException('Die Adminoberfläche bietet keinen obligatorischen CSV-Dry-Run an.');
 }
 
 foreach (array('schools.php', 'participants.php') as $template_name) {
 	$template = file_get_contents(dirname(__DIR__) . '/templates/' . $template_name);
-	$csv_grid_position = strpos($template, 'flz-ui-card-grid flzpu-csv-grid');
+	$csv_grid_position = strpos($template, 'flz-ui-card-grid flz-ui-card-grid--two-columns flzpu-csv-grid');
 	$table_position = strpos($template, '<table class="widefat striped flz-ui-admin-table">');
 	if (false === $csv_grid_position || false === $table_position || $table_position >= $csv_grid_position) {
 		throw new RuntimeException('Der CSV-Bereich muss als responsives Raster unter der Haupttabelle stehen: ' . $template_name);

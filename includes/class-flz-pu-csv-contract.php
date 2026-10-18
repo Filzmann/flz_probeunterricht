@@ -11,23 +11,12 @@ final class FlzPuCsvContract
 
 	public static function school_header(): array
 	{
-		return array('format_version', 'record_type', 'school_name', 'capacity');
+		return array('Schule', 'Kapazität');
 	}
 
 	public static function participant_header(): array
 	{
-		return array(
-			'format_version',
-			'record_type',
-			'last_name',
-			'first_name',
-			'class',
-			'email',
-			'school_name',
-			'lunch',
-			'status',
-			'created_at',
-		);
+		return array('Nachname', 'Vorname', 'Klasse', 'E-Mail Eltern', 'Grundschule', 'Mittagessen', 'Status', 'Anmeldedatum');
 	}
 
 	/** @param array<int,FlzPuSchool> $schools */
@@ -35,8 +24,6 @@ final class FlzPuCsvContract
 	{
 		return array_map(
 			static fn(FlzPuSchool $school): array => array(
-				self::VERSION,
-				'school',
 				(string) $school->name,
 				(int) $school->capacity,
 			),
@@ -49,8 +36,6 @@ final class FlzPuCsvContract
 	{
 		return array_map(
 			static fn(FlzPuParticipant $participant): array => array(
-				self::VERSION,
-				'participant',
 				(string) $participant->name,
 				(string) $participant->firstName,
 				(string) $participant->class,
@@ -67,21 +52,22 @@ final class FlzPuCsvContract
 	/** @return array<int,array{name:string,capacity:int}> */
 	public static function parse_schools(array $rows): array
 	{
-		self::assert_header($rows, self::school_header(), 'Grundschul');
+		$legacy = self::is_legacy_header($rows, array('format_version', 'record_type', 'school_name', 'capacity'));
+		self::assert_header($rows, self::school_header(), 'Grundschul', $legacy);
 		array_shift($rows);
 		$result = array();
 		$names = array();
 		foreach ($rows as $index => $raw_row) {
 			$line = $index + 2;
-			$row = self::row($raw_row, count(self::school_header()), $line);
-			if (self::VERSION !== $row[0] || 'school' !== $row[1]) {
+			$row = self::row($raw_row, $legacy ? 4 : count(self::school_header()), $line);
+			if ($legacy && (self::VERSION !== $row[0] || 'school' !== $row[1])) {
 				throw new UnexpectedValueException('Grundschul-CSV Zeile ' . $line . ': Version oder Datensatztyp ist ungültig.');
 			}
-			$name = sanitize_text_field($row[2]);
+			$name = sanitize_text_field($row[$legacy ? 2 : 0]);
 			if ('' === $name || strlen($name) > 255 || isset($names[strtolower($name)])) {
 				throw new UnexpectedValueException('Grundschul-CSV Zeile ' . $line . ': Der Schulname fehlt oder kommt doppelt vor.');
 			}
-			$capacity = self::integer($row[3], $line, 'Kapazität');
+			$capacity = self::integer($row[$legacy ? 3 : 1], $line, 'Kapazität');
 			$names[strtolower($name)] = true;
 			$result[] = array('name' => $name, 'capacity' => $capacity);
 		}
@@ -95,21 +81,23 @@ final class FlzPuCsvContract
 	/** @return array<int,array<string,mixed>> */
 	public static function parse_participants(array $rows): array
 	{
-		self::assert_header($rows, self::participant_header(), 'Teilnehmenden');
+		$legacy = self::is_legacy_header($rows, array('format_version', 'record_type', 'last_name', 'first_name', 'class', 'email', 'school_name', 'lunch', 'status', 'created_at'));
+		self::assert_header($rows, self::participant_header(), 'Teilnehmenden', $legacy);
 		array_shift($rows);
 		$result = array();
 		$keys = array();
 		foreach ($rows as $index => $raw_row) {
 			$line = $index + 2;
-			$row = self::row($raw_row, count(self::participant_header()), $line);
-			if (self::VERSION !== $row[0] || 'participant' !== $row[1]) {
+			$row = self::row($raw_row, $legacy ? 10 : count(self::participant_header()), $line);
+			if ($legacy && (self::VERSION !== $row[0] || 'participant' !== $row[1])) {
 				throw new UnexpectedValueException('Teilnehmenden-CSV Zeile ' . $line . ': Version oder Datensatztyp ist ungültig.');
 			}
-			$name = sanitize_text_field($row[2]);
-			$first_name = sanitize_text_field($row[3]);
-			$class = sanitize_text_field($row[4]);
-			$email = strtolower(sanitize_email($row[5]));
-			$school_name = sanitize_text_field($row[6]);
+			$offset = $legacy ? 2 : 0;
+			$name = sanitize_text_field($row[$offset]);
+			$first_name = sanitize_text_field($row[$offset + 1]);
+			$class = sanitize_text_field($row[$offset + 2]);
+			$email = strtolower(sanitize_email($row[$offset + 3]));
+			$school_name = sanitize_text_field($row[$offset + 4]);
 			if ('' === $name || '' === $first_name || '' === $class || '' === $school_name) {
 				throw new UnexpectedValueException('Teilnehmenden-CSV Zeile ' . $line . ': Ein Pflichtfeld fehlt.');
 			}
@@ -122,14 +110,14 @@ final class FlzPuCsvContract
 			if ('' === $email || !is_email($email)) {
 				throw new UnexpectedValueException('Teilnehmenden-CSV Zeile ' . $line . ': Die Eltern-E-Mail ist ungültig.');
 			}
-			if (!in_array($row[7], array('0', '1'), true)) {
+			if (!in_array($row[$offset + 5], array('0', '1'), true)) {
 				throw new UnexpectedValueException('Teilnehmenden-CSV Zeile ' . $line . ': Mittagessen muss 0 oder 1 sein.');
 			}
-			$status = sanitize_text_field($row[8]);
+			$status = sanitize_text_field($row[$offset + 6]);
 			if (!in_array($status, array('pending', 'active'), true)) {
 				throw new UnexpectedValueException('Teilnehmenden-CSV Zeile ' . $line . ': Der Status ist ungültig.');
 			}
-			$created_at = self::datetime($row[9], $line);
+			$created_at = self::datetime($row[$offset + 7], $line);
 			$key = strtolower(implode('|', array($name, $first_name, $class, $email, $school_name, $created_at)));
 			if (isset($keys[$key])) {
 				throw new UnexpectedValueException('Teilnehmenden-CSV Zeile ' . $line . ': Der Datensatz kommt doppelt vor.');
@@ -141,7 +129,7 @@ final class FlzPuCsvContract
 				'class' => $class,
 				'email' => $email,
 				'school_name' => $school_name,
-				'lunch' => '1' === $row[7],
+				'lunch' => '1' === $row[$offset + 5],
 				'status' => $status,
 				'created_at' => $created_at,
 			);
@@ -150,11 +138,16 @@ final class FlzPuCsvContract
 		return $result;
 	}
 
-	private static function assert_header(array $rows, array $expected, string $label): void
+	private static function assert_header(array $rows, array $expected, string $label, bool $legacy = false): void
 	{
-		if (empty($rows) || array_map(array(self::class, 'decode'), (array) $rows[0]) !== $expected) {
+		if (empty($rows) || (!$legacy && array_map(array(self::class, 'decode'), (array) $rows[0]) !== $expected)) {
 			throw new UnexpectedValueException('Die ' . $label . '-CSV-Kopfzeile entspricht nicht dem versionierten Format.');
 		}
+	}
+
+	private static function is_legacy_header(array $rows, array $legacy_header): bool
+	{
+		return ! empty($rows) && array_map(array(self::class, 'decode'), (array) $rows[0]) === $legacy_header;
 	}
 
 	private static function row($raw_row, int $columns, int $line): array

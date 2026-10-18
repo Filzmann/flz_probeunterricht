@@ -128,9 +128,9 @@ function flzpu_export_participants_csv(): void
 function flzpu_process_participants_csv_file(): ?array
 {
 	try {
-		$is_dry_run = isset($_POST['submit_csv_dry_run']);
 		$is_import = isset($_POST['submit_csv']);
-		if (!$is_dry_run && !$is_import) {
+		$is_dry_run = $is_import && isset($_POST['csv_dry_run']);
+		if (!$is_import) {
 			return null;
 		}
 
