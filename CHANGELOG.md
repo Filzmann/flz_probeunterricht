@@ -6,6 +6,8 @@ ergänzt.
 
 ## Unreleased
 
+## 1.1.2
+
 - Schulen- und Teilnehmenden-CSV werden erst vollständig geprüft und danach
   mit einer separaten Bestätigung ohne erneute Dateiauswahl importiert.
 
