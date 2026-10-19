@@ -21,6 +21,7 @@ function flzpu_schools_page_content(): void
 	flzpu_assert_admin_request();
 
 	$school_csv_notice = flzpu_process_schools_csv_file();
+	$school_csv_stage_ready = FlzCsvImportStage::exists('flzpu:schools', get_current_user_id());
 
 	if (isset($_POST['school_submit'])) {
 		$name = isset($_POST['name']) ? sanitize_text_field(wp_unslash($_POST['name'])) : '';
@@ -137,18 +138,18 @@ function flzpu_process_schools_csv_file(): ?array
 {
 	try {
 		$is_import = isset($_POST['submit_csv']);
-		$is_dry_run = $is_import && isset($_POST['csv_dry_run']);
-		if (!$is_import) {
+		$is_confirmation = isset($_POST['confirm_school_csv_import']);
+		if (!$is_import && !$is_confirmation) {
 			return null;
 		}
 
-		$school_rows = FlzPuCsvContract::parse_schools(
-			flz_wpdb_objects_read_uploaded_csv('schools-csv', 'Importieren der Grundschul-CSV-Datei', false)
-		);
-		$plan = flzpu_plan_school_csv_import($school_rows);
-		$proof = flzpu_school_csv_proof_hash($school_rows);
-		if ($is_dry_run) {
-			set_transient(flzpu_school_csv_proof_key(), $proof, 15 * MINUTE_IN_SECONDS);
+		if ($is_import) {
+			$school_rows = FlzPuCsvContract::parse_schools(
+				flz_wpdb_objects_read_uploaded_csv('schools-csv', 'Importieren der Grundschul-CSV-Datei', false)
+			);
+			$plan = flzpu_plan_school_csv_import($school_rows);
+			$proof = flzpu_school_csv_proof_hash($school_rows);
+			FlzCsvImportStage::store('flzpu:schools', get_current_user_id(), $school_rows, $proof, 15 * MINUTE_IN_SECONDS);
 
 			return array(
 				'type' => 'success',
@@ -156,10 +157,13 @@ function flzpu_process_schools_csv_file(): ?array
 			);
 		}
 
-		$stored_proof = get_transient(flzpu_school_csv_proof_key());
-		if (!is_string($stored_proof) || !hash_equals($stored_proof, $proof)) {
-			throw new UnexpectedValueException('Diese Grundschul-CSV muss zuerst erneut erfolgreich als Dry-Run geprüft werden.');
+		$stage = FlzCsvImportStage::consume('flzpu:schools', get_current_user_id());
+		if (!is_array($stage)) {
+			throw new UnexpectedValueException('Der geprüfte CSV-Stand ist abgelaufen. Bitte führen Sie den Dry-Run erneut aus.');
 		}
+		$school_rows = $stage['rows'];
+		$proof = $stage['proof'];
+		$plan = flzpu_plan_school_csv_import($school_rows);
 		flz_wpdb_objects\FlzWpdbTransaction::run(
 			static function () use ($plan, $proof, $school_rows): void {
 				FlzPuSetting::lock_capacity_limit();
@@ -181,7 +185,7 @@ function flzpu_process_schools_csv_file(): ?array
 			},
 			'Importieren des versionierten Grundschul-Snapshots'
 		);
-		delete_transient(flzpu_school_csv_proof_key());
+		FlzCsvImportStage::discard('flzpu:schools', get_current_user_id());
 
 		return array('type' => 'success', 'message' => 'Die Grundschul-CSV wurde vollständig importiert.');
 	} catch (Throwable $error) {

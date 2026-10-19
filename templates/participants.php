@@ -257,7 +257,12 @@ $flzpu_new_participant->school = new FlzPuSchool( array() );
 		<?php
 		// phpcs:disable WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die CSV-Komponente inklusive URL und Labels.
 		echo '<div class="flz-ui-card-grid flz-ui-card-grid--two-columns flzpu-csv-grid">';
-		echo $flzpu_ui->csv_panel( array( 'title' => 'Teilnehmerliste CSV', 'description' => 'Vollständiger Snapshot ohne Aktivierungstoken. Standardmäßig wird der Import zuerst nur geprüft.', 'format' => 'Nachname; Vorname; Klasse; E-Mail Eltern; Grundschule; Mittagessen; Status; Anmeldedatum', 'format_description' => '<strong>Mittagessen</strong>: 1 = ja, 0 = nein. <strong>Status</strong>: pending oder active. <strong>Anmeldedatum</strong>: JJJJ-MM-TT HH:MM:SS.', 'export' => array( 'href' => $participant_csv_export_url, 'label' => 'Teilnehmerliste herunterladen' ), 'upload' => array( 'nonce' => 'flzpu_admin_action', 'file_name' => 'participants-csv', 'file_id' => 'participants-csv', 'button_label' => 'Teilnehmenden-CSV verarbeiten', 'submit_name' => 'submit_csv', 'fields' => array( array( 'type' => 'checkbox', 'name' => 'csv_dry_run', 'label' => 'Import zuerst prüfen (empfohlen)', 'checked' => true, 'description' => 'Aktiv: Die Datei wird nur geprüft. Deaktiviert: Eine zuvor erfolgreich geprüfte, unveränderte Datei wird importiert.' ) ) ) ) );
+		echo $flzpu_ui->csv_panel( array( 'title' => 'Teilnehmerliste CSV', 'description' => 'Vollständiger Snapshot ohne Aktivierungstoken. Die Datei wird zuerst geprüft und kann anschließend ohne erneute Auswahl importiert werden.', 'format' => 'Nachname; Vorname; Klasse; E-Mail Eltern; Grundschule; Mittagessen; Status; Anmeldedatum', 'format_description' => '<strong>Mittagessen</strong>: 1 = ja, 0 = nein. <strong>Status</strong>: pending oder active. <strong>Anmeldedatum</strong>: JJJJ-MM-TT HH:MM:SS.', 'export' => array( 'href' => $participant_csv_export_url, 'label' => 'Teilnehmerliste herunterladen' ), 'upload' => array( 'nonce' => 'flzpu_admin_action', 'file_name' => 'participants-csv', 'file_id' => 'participants-csv', 'button_label' => 'Teilnehmenden-CSV prüfen', 'submit_name' => 'submit_csv' ) ) );
+		if ( $participant_csv_stage_ready ) {
+			echo $flzpu_ui->form_start( array( 'method' => 'post', 'nonce' => 'flzpu_admin_action' ) );
+			echo $flzpu_ui->button( array( 'label' => 'Geprüfte Teilnehmenden-CSV jetzt importieren', 'attrs' => array( 'name' => 'confirm_participant_csv_import', 'value' => '1', 'type' => 'submit' ), 'confirm' => 'Die geprüfte Teilnehmenden-CSV jetzt importieren? Die Daten werden danach aus der Zwischenablage gelöscht.' ) );
+			echo $flzpu_ui->form_end();
+		}
 		echo '</div>';
 		// phpcs:enable WordPress.Security.EscapeOutput.OutputNotEscaped
 		?>

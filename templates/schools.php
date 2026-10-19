@@ -114,7 +114,12 @@ $flzpu_school_row = static function ( FlzPuSchool $school ) use ( $flzpu_ui ): s
 	<?php
 	// phpcs:disable WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die CSV-Komponente inklusive URL, Labels und Formularfeldern.
 	echo '<div class="flz-ui-card-grid flz-ui-card-grid--two-columns flzpu-csv-grid">';
-	echo $flzpu_ui->csv_panel( array( 'title' => 'Schulen CSV', 'description' => 'Download für Excel oder Import derselben Datei. Standardmäßig wird der Import zuerst nur geprüft.', 'format' => 'Schule; Kapazität', 'format_description' => '<strong>Schule</strong>: Name der Grundschule. <strong>Kapazität</strong>: maximale Anzahl der Plätze (0 bis 10000).', 'export' => array( 'href' => $school_csv_export_url, 'label' => 'Schulen-CSV herunterladen' ), 'upload' => array( 'nonce' => 'flzpu_admin_action', 'file_name' => 'schools-csv', 'file_id' => 'schools-csv', 'button_label' => 'Schulen-CSV verarbeiten', 'submit_name' => 'submit_csv', 'fields' => array( array( 'type' => 'checkbox', 'name' => 'csv_dry_run', 'label' => 'Import zuerst prüfen (empfohlen)', 'checked' => true, 'description' => 'Aktiv: Die Datei wird nur geprüft. Deaktiviert: Eine zuvor erfolgreich geprüfte, unveränderte Datei wird importiert.' ) ) ) ) );
+	echo $flzpu_ui->csv_panel( array( 'title' => 'Schulen CSV', 'description' => 'Download für Excel oder Import derselben Datei. Die Datei wird zuerst geprüft und kann anschließend ohne erneute Auswahl importiert werden.', 'format' => 'Schule; Kapazität', 'format_description' => '<strong>Schule</strong>: Name der Grundschule. <strong>Kapazität</strong>: maximale Anzahl der Plätze (0 bis 10000).', 'export' => array( 'href' => $school_csv_export_url, 'label' => 'Schulen-CSV herunterladen' ), 'upload' => array( 'nonce' => 'flzpu_admin_action', 'file_name' => 'schools-csv', 'file_id' => 'schools-csv', 'button_label' => 'Schulen-CSV prüfen', 'submit_name' => 'submit_csv' ) ) );
+	if ( $school_csv_stage_ready ) {
+		echo $flzpu_ui->form_start( array( 'method' => 'post', 'nonce' => 'flzpu_admin_action' ) );
+		echo $flzpu_ui->button( array( 'label' => 'Geprüfte Schulen-CSV jetzt importieren', 'attrs' => array( 'name' => 'confirm_school_csv_import', 'value' => '1', 'type' => 'submit' ), 'confirm' => 'Die geprüfte Schulen-CSV jetzt importieren? Die Daten werden danach aus der Zwischenablage gelöscht.' ) );
+		echo $flzpu_ui->form_end();
+	}
 	echo '</div>';
 	// phpcs:enable WordPress.Security.EscapeOutput.OutputNotEscaped
 	?>

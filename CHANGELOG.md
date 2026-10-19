@@ -6,6 +6,9 @@ ergänzt.
 
 ## Unreleased
 
+- Schulen- und Teilnehmenden-CSV werden erst vollständig geprüft und danach
+  mit einer separaten Bestätigung ohne erneute Dateiauswahl importiert.
+
 ## 1.1.1 – 2026-09-21
 
 - Aktivierungslinks verwenden einen festen, signierten Frontend-Endpunkt und

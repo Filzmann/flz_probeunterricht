@@ -84,20 +84,23 @@ $templates = file_get_contents(dirname(__DIR__) . '/templates/participants.php')
 $combined = $participants_source . $schools_source;
 foreach (
 	array(
-		"isset(\$_POST['csv_dry_run'])",
+		"isset(\$_POST['confirm_participant_csv_import'])",
+		"isset(\$_POST['confirm_school_csv_import'])",
 		'FlzPuCsvContract::parse_schools',
 		'FlzPuCsvContract::parse_participants',
 		'FlzWpdbTransaction::run',
-		'set_transient',
-		'get_transient',
+		'FlzCsvImportStage::store',
+		'FlzCsvImportStage::consume',
 	) as $required
 ) {
 	if (!str_contains($combined, $required)) {
 		throw new RuntimeException('Der sichere CSV-Importvertrag fehlt: ' . $required);
 	}
 }
-if (!str_contains($templates, 'Import zuerst prüfen')) {
-	throw new RuntimeException('Die Adminoberfläche bietet keinen obligatorischen CSV-Dry-Run an.');
+foreach (array('Geprüfte Teilnehmenden-CSV jetzt importieren', 'Geprüfte Schulen-CSV jetzt importieren') as $required_confirmation) {
+	if (!str_contains($templates, $required_confirmation)) {
+		throw new RuntimeException('Die Adminoberfläche bietet keine eindeutige CSV-Importbestätigung an: ' . $required_confirmation);
+	}
 }
 
 foreach (array('schools.php', 'participants.php') as $template_name) {

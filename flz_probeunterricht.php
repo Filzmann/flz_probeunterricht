@@ -2,7 +2,7 @@
 /*
 Plugin Name: FLZ Probeunterricht
 Description: Probeunterricht am Tagore-Gymnasium
-Version: 1.1.1
+Version: 1.1.2
 Author: Filzmann
 License: GPLv2 or later
 Requires Plugins: flz_wpdb_objects, flz_ui_components
@@ -13,9 +13,9 @@ Requires PHP: 8.1
 
 defined( 'ABSPATH' ) || exit;
 
-const FLZPU_VERSION = '1.1.1';
+const FLZPU_VERSION = '1.1.2';
 const FLZPU_DB_VERSION = '2.1.0';
-const FLZPU_MIN_WPDB_OBJECTS_VERSION = '2.0.0';
+const FLZPU_MIN_WPDB_OBJECTS_VERSION = '2.1.0';
 const FLZPU_MIN_UI_COMPONENTS_VERSION = '0.1.11';
 
 function flzpu_dependencies_available(): bool {

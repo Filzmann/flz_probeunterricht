@@ -20,6 +20,7 @@ function flzpu_participants_page_content(): void
 {
 	flzpu_assert_admin_request();
 	$participant_csv_notice = flzpu_process_participants_csv_file();
+	$participant_csv_stage_ready = FlzCsvImportStage::exists('flzpu:participants', get_current_user_id());
 
 	if (isset($_POST['reset_participants'])) {
 		$new_available_seats = isset($_POST['available_seats']) ? intval(wp_unslash($_POST['available_seats'])) : 0;
@@ -129,18 +130,15 @@ function flzpu_process_participants_csv_file(): ?array
 {
 	try {
 		$is_import = isset($_POST['submit_csv']);
-		$is_dry_run = $is_import && isset($_POST['csv_dry_run']);
-		if (!$is_import) {
+		$is_confirmation = isset($_POST['confirm_participant_csv_import']);
+		if (!$is_import && !$is_confirmation) {
 			return null;
 		}
-
-		$rows = FlzPuCsvContract::parse_participants(
-			flz_wpdb_objects_read_uploaded_csv('participants-csv', 'Importieren der Teilnehmenden-CSV-Datei', false)
-		);
-		$plan = flzpu_plan_participant_csv_import($rows);
-		$proof = flzpu_participant_csv_proof_hash($rows);
-		if ($is_dry_run) {
-			set_transient(flzpu_participant_csv_proof_key(), $proof, 15 * MINUTE_IN_SECONDS);
+		if ($is_import) {
+			$rows = FlzPuCsvContract::parse_participants(flz_wpdb_objects_read_uploaded_csv('participants-csv', 'Importieren der Teilnehmenden-CSV-Datei', false));
+			$plan = flzpu_plan_participant_csv_import($rows);
+			$proof = flzpu_participant_csv_proof_hash($rows);
+			FlzCsvImportStage::store('flzpu:participants', get_current_user_id(), $rows, $proof, 15 * MINUTE_IN_SECONDS);
 
 			return array(
 				'type' => 'success',
@@ -148,10 +146,13 @@ function flzpu_process_participants_csv_file(): ?array
 			);
 		}
 
-		$stored_proof = get_transient(flzpu_participant_csv_proof_key());
-		if (!is_string($stored_proof) || !hash_equals($stored_proof, $proof)) {
-			throw new UnexpectedValueException('Diese Teilnehmenden-CSV muss zuerst erneut erfolgreich als Dry-Run geprüft werden.');
+		$stage = FlzCsvImportStage::consume('flzpu:participants', get_current_user_id());
+		if (!is_array($stage)) {
+			throw new UnexpectedValueException('Der geprüfte CSV-Stand ist abgelaufen. Bitte führen Sie den Dry-Run erneut aus.');
 		}
+		$rows = $stage['rows'];
+		$proof = $stage['proof'];
+		$plan = flzpu_plan_participant_csv_import($rows);
 
 		flz_wpdb_objects\FlzWpdbTransaction::run(
 			static function () use ($plan, $proof, $rows): void {
@@ -166,7 +167,7 @@ function flzpu_process_participants_csv_file(): ?array
 			},
 			'Wiederherstellen des vollständigen Probeunterricht-Teilnehmersnapshots'
 		);
-		delete_transient(flzpu_participant_csv_proof_key());
+		FlzCsvImportStage::discard('flzpu:participants', get_current_user_id());
 
 		return array('type' => 'success', 'message' => 'Die Teilnehmenden-CSV wurde vollständig importiert.');
 	} catch (Throwable $error) {
