@@ -91,6 +91,10 @@ foreach (
 		'FlzWpdbTransaction::run',
 		'FlzCsvImportStage::store',
 		'FlzCsvImportStage::consume',
+		'flzpu_participant_csv_identity_key',
+		'flzpu_requested_participant_csv_deletions',
+		'flzpu_validate_participant_csv_capacity',
+		'get_by_id_for_update',
 	) as $required
 ) {
 	if (!str_contains($combined, $required)) {
@@ -100,6 +104,16 @@ foreach (
 foreach (array('Geprüfte Teilnehmenden-CSV jetzt importieren', 'Geprüfte Schulen-CSV jetzt importieren') as $required_confirmation) {
 	if (!str_contains($templates, $required_confirmation)) {
 		throw new RuntimeException('Die Adminoberfläche bietet keine eindeutige CSV-Importbestätigung an: ' . $required_confirmation);
+	}
+}
+foreach (array("'confirm_participant_csv_import' => '1'", "'confirm_school_csv_import' => '1'", 'button_save( array(') as $required_submit_contract) {
+	if (!str_contains($templates, $required_submit_contract)) {
+		throw new RuntimeException('Die CSV-Importbestätigung ist kein verlässlicher Submit-Request: ' . $required_submit_contract);
+	}
+}
+foreach (array("'name' => 'delete_missing_participants[]'", 'Nicht in der CSV enthaltene Teilnehmende endgültig löschen', 'flzpu-participant-csv-removable') as $required_participant_deletion_contract) {
+	if (!str_contains($templates, $required_participant_deletion_contract)) {
+		throw new RuntimeException('Die Teilnehmenden-CSV bietet keine sichere Einzelauswahl für Löschkandidaten an: ' . $required_participant_deletion_contract);
 	}
 }
 

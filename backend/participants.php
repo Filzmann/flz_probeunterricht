@@ -142,7 +142,14 @@ function flzpu_process_participants_csv_file(): ?array
 
 			return array(
 				'type' => 'success',
-				'message' => sprintf('Dry-Run erfolgreich: vollständiger Snapshot mit %d Teilnehmenden.', count($plan['participants'])),
+				'message' => sprintf('Dry-Run erfolgreich: %d Teilnehmende werden aktualisiert, %d neu angelegt. %d nicht in der CSV enthaltene Teilnehmende sind zur Einzelauswahl markiert.', $plan['updated'], $plan['created'], count($plan['missing_participants'])),
+				'missing_participants' => array_map(
+					static fn(FlzPuParticipant $participant): array => array(
+						'id' => (int) $participant->id,
+						'label' => trim((string) $participant->firstName . ' ' . (string) $participant->name) . ' (' . (string) $participant->email . ')',
+					),
+					$plan['missing_participants']
+				),
 			);
 		}
 
@@ -153,23 +160,22 @@ function flzpu_process_participants_csv_file(): ?array
 		$rows = $stage['rows'];
 		$proof = $stage['proof'];
 		$plan = flzpu_plan_participant_csv_import($rows);
+		$delete_missing_participant_ids = flzpu_requested_participant_csv_deletions($plan);
 
 		flz_wpdb_objects\FlzWpdbTransaction::run(
-			static function () use ($plan, $proof, $rows): void {
+			static function () use ($plan, $proof, $rows, $delete_missing_participant_ids): void {
 				$maximum = FlzPuSetting::lock_capacity_limit();
-				if (count($plan['participants']) > $maximum) {
-					throw new UnexpectedValueException('Der Snapshot überschreitet die globale Probeunterrichtskapazität.');
-				}
 				if (!hash_equals($proof, flzpu_participant_csv_proof_hash($rows))) {
 					throw new UnexpectedValueException('Der Teilnehmerbestand hat sich seit dem Dry-Run verändert.');
 				}
-				flzpu_apply_participant_csv_import_plan($plan);
+				flzpu_validate_participant_csv_capacity($plan, $delete_missing_participant_ids, $maximum);
+				flzpu_apply_participant_csv_import_plan($plan, $delete_missing_participant_ids);
 			},
 			'Wiederherstellen des vollständigen Probeunterricht-Teilnehmersnapshots'
 		);
 		FlzCsvImportStage::discard('flzpu:participants', get_current_user_id());
 
-		return array('type' => 'success', 'message' => 'Die Teilnehmenden-CSV wurde vollständig importiert.');
+		return array('type' => 'success', 'message' => sprintf('Die Teilnehmenden-CSV wurde importiert: %d aktualisiert, %d neu angelegt%s.', $plan['updated'], $plan['created'], !empty($delete_missing_participant_ids) ? sprintf(', %d ausgewählte nicht enthaltene Teilnehmende endgültig gelöscht', count($delete_missing_participant_ids)) : ''));
 	} catch (Throwable $error) {
 		flzpu_log_error($error, 'Prüfen oder Importieren der Teilnehmenden-CSV-Datei');
 
@@ -185,17 +191,20 @@ function flzpu_process_participants_csv_file(): ?array
 /** @param array<int,array<string,mixed>> $rows */
 function flzpu_plan_participant_csv_import(array $rows): array
 {
-	$maximum = max(0, (int) FlzPuSetting::get_value_by_name('MaxTeilnehmerGesamt'));
-	if (count($rows) > $maximum) {
-		throw new UnexpectedValueException('Der Snapshot überschreitet die globale Probeunterrichtskapazität.');
-	}
-
 	$schools = array();
 	foreach (FlzPuSchool::get_all_by(order_by: 'id') as $school) {
 		$schools[strtolower((string) $school->name)] = $school;
 	}
 	$counts = array();
 	$participants = array();
+	$existing_by_identity = array();
+	foreach (FlzPuParticipant::get_all_by(order_by: 'id') as $participant) {
+		$key = flzpu_participant_csv_identity_key($participant);
+		if (isset($existing_by_identity[$key])) {
+			throw new UnexpectedValueException('Die vorhandenen Teilnehmendendaten enthalten einen doppelten CSV-Abgleichsschlüssel.');
+		}
+		$existing_by_identity[$key] = $participant;
+	}
 	foreach ($rows as $row) {
 		$key = strtolower($row['school_name']);
 		$school = $schools[$key] ?? null;
@@ -206,13 +215,92 @@ function flzpu_plan_participant_csv_import(array $rows): array
 		if ($counts[(int) $school->id] > (int) $school->capacity) {
 			throw new UnexpectedValueException('Die CSV überschreitet die Kapazität der Grundschule „' . $school->name . '“.');
 		}
-		$participants[] = array('data' => $row, 'school' => $school);
+		$key = flzpu_participant_csv_identity_key($row);
+		$existing = $existing_by_identity[$key] ?? null;
+		unset($existing_by_identity[$key]);
+		$participants[] = array('data' => $row, 'school' => $school, 'existing' => $existing);
 	}
 
-	return array('participants' => $participants, 'school_counts' => $counts, 'schools' => array_values($schools));
+	$updated = count(array_filter($participants, static fn(array $item): bool => $item['existing'] instanceof FlzPuParticipant));
+	return array(
+		'participants' => $participants,
+		'school_counts' => $counts,
+		'schools' => array_values($schools),
+		'updated' => $updated,
+		'created' => count($participants) - $updated,
+		'missing_participants' => array_values($existing_by_identity),
+	);
 }
 
-function flzpu_apply_participant_csv_import_plan(array $plan): void
+/** @param array<string,mixed>|FlzPuParticipant $participant */
+function flzpu_participant_csv_identity_key(array|FlzPuParticipant $participant): string
+{
+	$value = static function (array|FlzPuParticipant $source, string $property): string {
+		if (is_array($source)) {
+			return (string) ($source[$property] ?? '');
+		}
+		return (string) ($source->{$property} ?? '');
+	};
+	return strtolower(implode('|', array(
+		$value($participant, 'name'),
+		$value($participant, 'firstName'),
+		$value($participant, 'email'),
+		$value($participant, 'created_at'),
+	)));
+}
+
+/**
+ * @param array{missing_participants:array<int,FlzPuParticipant>} $plan
+ * @return array<int,int>
+ */
+function flzpu_requested_participant_csv_deletions(array $plan): array
+{
+	// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Jede ID wird als positive Zahl und gegen den serverseitigen Dry-Run-Plan validiert.
+	$requested = isset($_POST['delete_missing_participants']) ? wp_unslash($_POST['delete_missing_participants']) : array();
+	if (!is_array($requested)) {
+		throw new UnexpectedValueException('Die Auswahl der zu löschenden Teilnehmenden ist ungültig.');
+	}
+	$requested_ids = array();
+	foreach ($requested as $participant_id) {
+		if (!is_scalar($participant_id) || !ctype_digit((string) $participant_id) || 0 === (int) $participant_id) {
+			throw new UnexpectedValueException('Die Auswahl der zu löschenden Teilnehmenden ist ungültig.');
+		}
+		$requested_ids[] = (int) $participant_id;
+	}
+	$requested_ids = array_values(array_unique($requested_ids));
+	$allowed_ids = array_map(static fn(FlzPuParticipant $participant): int => (int) $participant->id, $plan['missing_participants']);
+	if (array_diff($requested_ids, $allowed_ids)) {
+		throw new UnexpectedValueException('Die Auswahl enthält keinen nicht im geprüften CSV-Stand enthaltenen Teilnehmenden.');
+	}
+	return $requested_ids;
+}
+
+/** @param array<string,mixed> $plan @param array<int,int> $delete_missing_participant_ids */
+function flzpu_validate_participant_csv_capacity(array $plan, array $delete_missing_participant_ids, int $maximum): void
+{
+	$final_count = count($plan['participants']) + count(array_filter(
+		$plan['missing_participants'],
+		static fn(FlzPuParticipant $participant): bool => !in_array((int) $participant->id, $delete_missing_participant_ids, true)
+	));
+	if ($final_count > $maximum) {
+		throw new UnexpectedValueException('Der Import überschreitet die globale Probeunterrichtskapazität. Wählen Sie weitere markierte Teilnehmende zur Löschung aus oder korrigieren Sie die CSV.');
+	}
+	$school_counts = $plan['school_counts'];
+	foreach ($plan['missing_participants'] as $participant) {
+		if (!in_array((int) $participant->id, $delete_missing_participant_ids, true)) {
+			$school_id = (int) ($participant->school?->id ?? 0);
+			$school_counts[$school_id] = ($school_counts[$school_id] ?? 0) + 1;
+		}
+	}
+	foreach ($plan['schools'] as $school) {
+		if (($school_counts[(int) $school->id] ?? 0) > (int) $school->capacity) {
+			throw new UnexpectedValueException('Der Import überschreitet die Kapazität der Grundschule „' . $school->name . '“. Wählen Sie weitere markierte Teilnehmende zur Löschung aus oder korrigieren Sie die CSV.');
+		}
+	}
+}
+
+/** @param array<string,mixed> $plan @param array<int,int> $delete_missing_participant_ids */
+function flzpu_apply_participant_csv_import_plan(array $plan, array $delete_missing_participant_ids = array()): void
 {
 	$locked_schools = array();
 	$school_ids = array_map(static fn(FlzPuSchool $school): int => (int) $school->id, $plan['schools']);
@@ -225,31 +313,47 @@ function flzpu_apply_participant_csv_import_plan(array $plan): void
 		$locked_schools[$school_id] = $school;
 	}
 
-	foreach (FlzPuParticipant::get_all_by() as $participant) {
-		if ($participant instanceof FlzPuParticipant) {
-			$participant->delete();
+	foreach ($plan['missing_participants'] as $participant) {
+		if (in_array((int) $participant->id, $delete_missing_participant_ids, true)) {
+			$locked_participant = FlzPuParticipant::get_by_id_for_update((int) $participant->id);
+			if (!$locked_participant instanceof FlzPuParticipant) {
+				throw new UnexpectedValueException('Ein zum Löschen ausgewählter Teilnehmer wurde nicht gefunden.');
+			}
+			$locked_participant->delete();
 		}
 	}
 	$now = current_time('mysql');
 	foreach ($plan['participants'] as $item) {
 		$data = $item['data'];
 		$school = $locked_schools[(int) $item['school']->id];
-		(new FlzPuParticipant(array(
-			'name' => $data['name'],
-			'firstName' => $data['firstName'],
-			'class' => $data['class'],
-			'email' => $data['email'],
-			'school' => $school,
-			'lunch' => $data['lunch'],
-			'status' => $data['status'],
-			'activationExpiration' => null,
-			'activationToken' => null,
-			'created_at' => $data['created_at'],
-			'updated_at' => $now,
-		)))->save();
+		$participant = $item['existing'] instanceof FlzPuParticipant
+			? FlzPuParticipant::get_by_id_for_update((int) $item['existing']->id)
+			: new FlzPuParticipant(array());
+		if (!$participant instanceof FlzPuParticipant) {
+			throw new UnexpectedValueException('Ein zu aktualisierender Teilnehmer wurde nicht gefunden.');
+		}
+		$participant->name = $data['name'];
+		$participant->firstName = $data['firstName'];
+		$participant->class = $data['class'];
+		$participant->email = $data['email'];
+		$participant->school = $school;
+		$participant->lunch = $data['lunch'];
+		$participant->status = $data['status'];
+		$participant->activationExpiration = null;
+		$participant->activationToken = null;
+		$participant->created_at = $data['created_at'];
+		$participant->updated_at = $now;
+		$participant->save();
+	}
+	$school_counts = $plan['school_counts'];
+	foreach ($plan['missing_participants'] as $participant) {
+		if (!in_array((int) $participant->id, $delete_missing_participant_ids, true)) {
+			$school_id = (int) ($participant->school?->id ?? 0);
+			$school_counts[$school_id] = ($school_counts[$school_id] ?? 0) + 1;
+		}
 	}
 	foreach ($locked_schools as $school_id => $school) {
-		$school->available_seats = (int) $school->capacity - ($plan['school_counts'][$school_id] ?? 0);
+		$school->available_seats = (int) $school->capacity - ($school_counts[$school_id] ?? 0);
 		$school->save();
 	}
 }

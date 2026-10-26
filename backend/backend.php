@@ -47,5 +47,9 @@ function flzpu_maybe_enqueue_admin_ui_assets(string $hook_suffix): void
 {
 	if (str_contains($hook_suffix, 'flzpu_') && function_exists('flz_ui_components_enqueue_assets')) {
 		flz_ui_components_enqueue_assets();
+		wp_add_inline_style(
+			'flz-ui-components',
+			'.flzpu-participant-csv-removable > td { background: var(--flz-ui-color-danger-bg); } .flzpu-participant-csv-status { display: inline-flex; align-items: center; gap: .2rem; margin-left: .4rem; color: var(--flz-ui-color-danger); font-weight: 700; }'
+		);
 	}
 }

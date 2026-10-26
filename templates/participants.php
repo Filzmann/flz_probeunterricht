@@ -29,11 +29,23 @@ $flzpu_school_options_for = static function ( int $current_school_id = 0 ) use (
 	return $options;
 };
 
-$flzpu_participant_row = static function ( FlzPuParticipant $participant ) use ( $flzpu_ui, $flzpu_school_options_for ): string {
+$flzpu_participant_csv_statuses = array();
+if ( ! empty( $participant_csv_notice['missing_participants'] ) && is_array( $participant_csv_notice['missing_participants'] ) ) {
+	foreach ( $participant_csv_notice['missing_participants'] as $missing_participant ) {
+		$flzpu_participant_csv_statuses[ (int) $missing_participant['id'] ] = true;
+	}
+}
+
+$flzpu_participant_row = static function ( FlzPuParticipant $participant ) use ( $flzpu_ui, $flzpu_school_options_for, $flzpu_participant_csv_statuses ): string {
 	$is_new = empty( $participant->id );
 	$row_id = $is_new ? 'flzpu-participant-new' : 'flzpu-participant-' . (int) $participant->id;
 	$current_school_id = ! empty( $participant->school?->id ) ? (int) $participant->school->id : 0;
 	$delete_action = '';
+	$is_csv_removable = ! $is_new && isset( $flzpu_participant_csv_statuses[ (int) $participant->id ] );
+	$name_view = esc_html( (string) ( $participant->name ?? '' ) );
+	if ( $is_csv_removable ) {
+		$name_view .= ' <span class="flzpu-participant-csv-status"><span class="dashicons dashicons-trash" aria-hidden="true"></span><span>Nicht in der letzten CSV enthalten</span></span>';
+	}
 
 	if ( ! $is_new ) {
 		$delete_action .= $flzpu_ui->action_form_button(
@@ -50,6 +62,7 @@ $flzpu_participant_row = static function ( FlzPuParticipant $participant ) use (
 	return $flzpu_ui->editable_row(
 		array(
 			'id'         => $row_id,
+			'class'      => $is_csv_removable ? 'flzpu-participant-csv-removable' : '',
 			'new'        => $is_new,
 			'row_hidden' => $is_new,
 			'form'       => array(
@@ -63,7 +76,7 @@ $flzpu_participant_row = static function ( FlzPuParticipant $participant ) use (
 			'cells'      => array(
 				array( 'view' => $participant->id ?? 'neu' ),
 				array(
-					'view'  => $participant->name ?? '',
+					'view_html' => $name_view,
 					'field' => array(
 						'type'     => 'text',
 						'name'     => 'participant_save[name]',
@@ -259,8 +272,15 @@ $flzpu_new_participant->school = new FlzPuSchool( array() );
 		echo '<div class="flz-ui-card-grid flz-ui-card-grid--two-columns flzpu-csv-grid">';
 		echo $flzpu_ui->csv_panel( array( 'title' => 'Teilnehmerliste CSV', 'description' => 'Vollständiger Snapshot ohne Aktivierungstoken. Die Datei wird zuerst geprüft und kann anschließend ohne erneute Auswahl importiert werden.', 'format' => 'Nachname; Vorname; Klasse; E-Mail Eltern; Grundschule; Mittagessen; Status; Anmeldedatum', 'format_description' => '<strong>Mittagessen</strong>: 1 = ja, 0 = nein. <strong>Status</strong>: pending oder active. <strong>Anmeldedatum</strong>: JJJJ-MM-TT HH:MM:SS.', 'export' => array( 'href' => $participant_csv_export_url, 'label' => 'Teilnehmerliste herunterladen' ), 'upload' => array( 'nonce' => 'flzpu_admin_action', 'file_name' => 'participants-csv', 'file_id' => 'participants-csv', 'button_label' => 'Teilnehmenden-CSV prüfen', 'submit_name' => 'submit_csv' ) ) );
 		if ( $participant_csv_stage_ready ) {
-			echo $flzpu_ui->form_start( array( 'method' => 'post', 'nonce' => 'flzpu_admin_action' ) );
-			echo $flzpu_ui->button( array( 'label' => 'Geprüfte Teilnehmenden-CSV jetzt importieren', 'attrs' => array( 'name' => 'confirm_participant_csv_import', 'value' => '1', 'type' => 'submit' ), 'confirm' => 'Die geprüfte Teilnehmenden-CSV jetzt importieren? Die Daten werden danach aus der Zwischenablage gelöscht.' ) );
+			echo $flzpu_ui->form_start( array( 'method' => 'post', 'nonce' => 'flzpu_admin_action', 'hidden' => array( 'confirm_participant_csv_import' => '1' ) ) );
+			if ( ! empty( $participant_csv_notice['missing_participants'] ) && is_array( $participant_csv_notice['missing_participants'] ) ) {
+				echo '<fieldset class="flzpu-participant-csv-deletions"><legend>Nicht in der CSV enthaltene Teilnehmende endgültig löschen</legend><p>Wählen Sie jede Person einzeln aus. Nicht ausgewählte Teilnehmende bleiben erhalten.</p>';
+				foreach ( $participant_csv_notice['missing_participants'] as $missing_participant ) {
+					echo $flzpu_ui->field( array( 'type' => 'checkbox', 'name' => 'delete_missing_participants[]', 'checkbox_value' => (string) $missing_participant['id'], 'label' => (string) $missing_participant['label'] . ': endgültig löschen.' ) );
+				}
+				echo '</fieldset>';
+			}
+			echo $flzpu_ui->button_save( array( 'label' => 'Geprüfte Teilnehmenden-CSV jetzt importieren', 'hide_label' => false, 'confirm' => 'Die geprüfte Teilnehmenden-CSV jetzt importieren? Gewählte Löschoptionen entfernen Teilnehmende endgültig.' ) );
 			echo $flzpu_ui->form_end();
 		}
 		echo '</div>';
