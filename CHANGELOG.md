@@ -6,6 +6,12 @@ ergänzt.
 
 ## Unreleased
 
+## 1.1.3
+
+- Vorgemerkte Probeunterrichtsanmeldungen besitzen nun ein separates
+  Bestätigungsmerkmal, konfigurierbare Warn- und Freigabefristen sowie
+  geschützte Einzel- und Sammelaktionen im Backend.
+
 ## 1.1.2
 
 - Schulen- und Teilnehmenden-CSV werden erst vollständig geprüft und danach
