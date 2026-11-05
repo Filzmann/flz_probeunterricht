@@ -12,6 +12,8 @@ class FlzPuParticipant extends FlzPerson{
 	public string|null $status;
 	public string|null $activationExpiration;
 	public string|null $activationToken;
+	public string|null $activationWarningSentAt;
+	public bool $isConfirmed;
 	public string|null $created_at;
 	public string|null $updated_at;
 
@@ -23,6 +25,8 @@ class FlzPuParticipant extends FlzPerson{
 		$this->status    = $data['status']??'pending';
 		$this->activationExpiration = $data['activationExpiration']??null;
 		$this->activationToken      = $data['activationToken']??null;
+		$this->activationWarningSentAt = $data['activationWarningSentAt'] ?? null;
+		$this->isConfirmed = isset($data['isConfirmed']) ? (bool) $data['isConfirmed'] : true;
 		$this->created_at           = $data['created_at'] ?? null;
 		$this->updated_at           = $data['updated_at'] ?? null;
 	}
@@ -37,6 +41,8 @@ class FlzPuParticipant extends FlzPerson{
 			'status'=> $this->status,
 			'activationExpiration' => $this->activationExpiration,
 			'activationToken' => $this->activationToken,
+			'activationWarningSentAt' => $this->activationWarningSentAt,
+			'isConfirmed' => $this->isConfirmed ? 1 : 0,
 			'created_at' => $this->created_at,
 			'updated_at' => $this->updated_at,
 		];
@@ -54,6 +60,8 @@ class FlzPuParticipant extends FlzPerson{
 	        status VARCHAR(25) DEFAULT 'pending',
 	        activationExpiration TIMESTAMP,
 	        activationToken VARCHAR(255) NULL,
+	        activationWarningSentAt DATETIME NULL,
+	        isConfirmed tinyint(1) NOT NULL DEFAULT 1,
 	        created_at DATETIME NULL,
 	        updated_at DATETIME NULL,
 	        PRIMARY KEY (id)
@@ -76,6 +84,18 @@ class FlzPuParticipant extends FlzPerson{
 		return static::query_models($sql, array($cutoff), 'Laden abgelaufener Probeunterrichtsanmeldungen');
 	}
 
+	/** @return array<int,self> */
+	public static function find_pending_expiring_between(string $start, string $end): array {
+		$sql = 'SELECT * FROM ' . static::table_name() . ' WHERE isConfirmed = 0 AND activationWarningSentAt IS NULL AND activationExpiration > %s AND activationExpiration <= %s ORDER BY id ASC';
+		return static::query_models($sql, array($start, $end), 'Laden vorgemerkter Probeunterrichtsanmeldungen zur Warnung');
+	}
+
+	/** @return array<int,self> */
+	public static function find_pending_expired(string $now): array {
+		$sql = 'SELECT * FROM ' . static::table_name() . ' WHERE isConfirmed = 0 AND activationExpiration <= %s ORDER BY id ASC';
+		return static::query_models($sql, array($now), 'Laden abgelaufener Probeunterrichtsvormerkungen');
+	}
+
 	public static function reset( int $new_available_seats = 8 ): void {
 		FlzPuRegistrationService::reset($new_available_seats);
 	}
@@ -84,7 +104,10 @@ class FlzPuParticipant extends FlzPerson{
 		$this->activationToken = wp_generate_password( 48, false, false );
 
 		// Speichere den Token und das Ablaufdatum in der Datenbank
-		$this->activationExpiration = gmdate( 'Y-m-d H:i:s', time() + 2 * DAY_IN_SECONDS );
+		$release_hours = function_exists('flzpu_unconfirmed_release_hours') ? flzpu_unconfirmed_release_hours() : 48;
+		$hour_seconds = defined('HOUR_IN_SECONDS') ? HOUR_IN_SECONDS : 3600;
+		$this->activationExpiration = gmdate( 'Y-m-d H:i:s', time() + $release_hours * $hour_seconds );
+		$this->activationWarningSentAt = null;
 		$this->save();
 
 		// Baue den Aktivierungslink
@@ -120,8 +143,10 @@ class FlzPuParticipant extends FlzPerson{
 			&& hash_equals( $this->activationToken, $token );
 		if ( $token_valid && $expires_at !== false && $expires_at >= time() ) {
 			$this->status = 'active';
+			$this->isConfirmed = true;
 			$this->activationToken = null;
 			$this->activationExpiration = null;
+			$this->activationWarningSentAt = null;
 			$this->save();
 
 			return flz_ui()->notice( 'Der Teilnehmer wurde aktiviert. Sie können das Fenster jetzt schließen!', 'success' );

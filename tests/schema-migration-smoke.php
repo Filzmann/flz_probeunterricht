@@ -27,11 +27,12 @@ if ( false === $migration ) {
 
 foreach (
 	array(
-		"const FLZPU_VERSION = '1.1.2'"            => $bootstrap,
-		"const FLZPU_DB_VERSION = '2.1.0'"         => $bootstrap,
+		"const FLZPU_VERSION = '1.1.3'"            => $bootstrap,
+		"const FLZPU_DB_VERSION = '2.2.0'"         => $bootstrap,
 		'FlzPuSchemaMigrator::maybe_upgrade()'      => $activation,
 		'created_at DATETIME NULL'                  => $participant,
 		'updated_at DATETIME NULL'                  => $participant,
+		'isConfirmed tinyint(1) NOT NULL DEFAULT 1' => $participant,
 		"get_option('flzpu_db_version'"            => $migration,
 		"update_option('flzpu_db_version'"         => $migration,
 		"'flzpuparticipants'"                      => $migration,

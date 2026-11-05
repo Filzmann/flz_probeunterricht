@@ -62,6 +62,17 @@ function flzpu_settings_page_content(): void
 		$settings_notice = 'Datenschutz- und Aufbewahrungseinstellungen gespeichert.';
 	}
 
+	if (isset($_POST['flzpu_unconfirmed_release_settings'])) {
+		$enabled = isset($_POST['flzpu_unconfirmed_release_enabled']) ? 1 : 0;
+		$hours = isset($_POST['flzpu_unconfirmed_release_hours']) ? max(1, min(720, absint(wp_unslash($_POST['flzpu_unconfirmed_release_hours'])))) : 48;
+		$warning = isset($_POST['flzpu_unconfirmed_warning_hours']) ? max(0, min($hours - 1, absint(wp_unslash($_POST['flzpu_unconfirmed_warning_hours'])))) : 24;
+		$enabled ? flzpu_schedule_unconfirmed_release() : flzpu_unschedule_unconfirmed_release();
+		update_option('flzpu_unconfirmed_release_enabled', $enabled, false);
+		update_option('flzpu_unconfirmed_release_hours', $hours, false);
+		update_option('flzpu_unconfirmed_warning_hours', $warning, false);
+		$settings_notice = 'Einstellungen für vorgemerkte Anmeldungen gespeichert.';
+	}
+
 	if (isset($_POST['flzpu_install_demo'])) {
 		$created = flzpu_install_demo_content();
 		$settings_notice = sprintf(
@@ -74,6 +85,9 @@ function flzpu_settings_page_content(): void
 	$settings = FlzPuSetting::get_all_by();
 	$retention_enabled = (bool) get_option('flzpu_retention_enabled', 0);
 	$retention_months = flzpu_retention_months();
+	$unconfirmed_release_enabled = (bool) get_option('flzpu_unconfirmed_release_enabled', 0);
+	$unconfirmed_release_hours = flzpu_unconfirmed_release_hours();
+	$unconfirmed_warning_hours = flzpu_unconfirmed_warning_hours();
 	$privacy_deleted = isset($_GET['privacy_deleted']) ? absint(wp_unslash($_GET['privacy_deleted'])) : null;
 	include dirname(__DIR__) . '/templates/settings.php';
 }
@@ -146,6 +160,7 @@ function flzpu_install_demo_content(): array
 				$participant_data['school'] = $school;
 				$participant_data['activationExpiration'] = null;
 				$participant_data['activationToken'] = null;
+				$participant_data['isConfirmed'] = true;
 				$participant_data['created_at'] = current_time('mysql');
 				$participant_data['updated_at'] = current_time('mysql');
 				(new FlzPuParticipant($participant_data))->save();

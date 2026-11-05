@@ -32,6 +32,18 @@
     </div>
 
 	<div class="flz-ui-panel">
+		<h2>Vorgemerkte Anmeldungen</h2>
+		<p>Neue Anmeldungen sind vorgemerkt, bis der Link in der E-Mail bestätigt wurde. Die Freigabeautomatik ist standardmäßig ausgeschaltet.</p>
+		<?php echo $flzpu_ui->form_start( array( 'method' => 'post', 'nonce' => 'flzpu_admin_action' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped das Formular. ?>
+			<?php echo $flzpu_ui->hidden( 'flzpu_unconfirmed_release_settings', '1' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped das Feld. ?>
+			<?php echo $flzpu_ui->field( array( 'type' => 'checkbox', 'name' => 'flzpu_unconfirmed_release_enabled', 'label' => 'Vorgemerkte Anmeldungen automatisch freigeben', 'checked' => $unconfirmed_release_enabled ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped das Feld. ?>
+			<?php echo $flzpu_ui->input( 'number', array( 'name' => 'flzpu_unconfirmed_release_hours', 'label' => 'Stunden bis zur Freigabe', 'value' => $unconfirmed_release_hours, 'min' => 1, 'max' => 720, 'required' => true ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped das Feld. ?>
+			<?php echo $flzpu_ui->input( 'number', array( 'name' => 'flzpu_unconfirmed_warning_hours', 'label' => 'Warnung vor der Freigabe (Stunden)', 'value' => $unconfirmed_warning_hours, 'min' => 0, 'max' => 719, 'required' => true ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped das Feld. ?>
+			<?php echo $flzpu_ui->button_save( array( 'label' => 'Vormerkungseinstellungen speichern' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped den Button. ?>
+		<?php echo $flzpu_ui->form_end(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped das Formularende. ?>
+	</div>
+
+	<div class="flz-ui-panel">
 		<h2>Datenschutz und Aufbewahrung</h2>
 		<p>Automatische Löschung ist standardmäßig deaktiviert. Die vorgeschlagene Frist beträgt 24 Monate ab dem ursprünglichen Anmeldedatum.</p>
 		<?php echo $flzpu_ui->form_start( array( 'method' => 'post', 'nonce' => 'flzpu_admin_action' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped das Formular. ?>

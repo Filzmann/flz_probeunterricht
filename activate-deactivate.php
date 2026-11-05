@@ -28,8 +28,14 @@ function flzpu_probeunterricht_activate(): void {
 		$role->add_cap( 'flz_pu' );
 		add_option('flzpu_retention_enabled', 0);
 		add_option('flzpu_retention_months', 24);
+		add_option('flzpu_unconfirmed_release_enabled', 0);
+		add_option('flzpu_unconfirmed_release_hours', 48);
+		add_option('flzpu_unconfirmed_warning_hours', 24);
 		if ((bool) get_option('flzpu_retention_enabled', 0)) {
 			flzpu_schedule_privacy_cleanup();
+		}
+		if ((bool) get_option('flzpu_unconfirmed_release_enabled', 0)) {
+			flzpu_schedule_unconfirmed_release();
 		}
 	} catch ( Throwable $error ) {
 		throw flzpu_operation_error( $error, 'Aktivieren des Probeunterrichts-Plugins' );
@@ -42,6 +48,7 @@ function flzpu_probeunterricht_deactivate(): void
 {
 	try {
 		flzpu_unschedule_privacy_cleanup();
+		flzpu_unschedule_unconfirmed_release();
 	} catch (Throwable $error) {
 		flzpu_log_error($error, 'Entfernen des Probeunterricht-Privacy-Jobs bei Deaktivierung');
 	}

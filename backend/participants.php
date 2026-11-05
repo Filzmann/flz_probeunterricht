@@ -35,6 +35,40 @@ function flzpu_participants_page_content(): void
 		FlzPuRegistrationService::delete($participant);
 	}
 
+	if (isset($_POST['participant_confirm'])) {
+		$participant = FlzPuParticipant::get_by_id(absint(wp_unslash($_POST['participant_confirm'])));
+		if (!$participant instanceof FlzPuParticipant || $participant->isConfirmed) {
+			throw new UnexpectedValueException('Die zu bestätigende Vormerkung wurde nicht gefunden.');
+		}
+		$participant->isConfirmed = true;
+		$participant->activationToken = null;
+		$participant->activationExpiration = null;
+		$participant->activationWarningSentAt = null;
+		$participant->updated_at = current_time('mysql');
+		$participant->save();
+	}
+
+	if (isset($_POST['participant_bulk_action'])) {
+		$action = sanitize_key(wp_unslash($_POST['participant_bulk_action']));
+		$ids = isset($_POST['participant_bulk_ids']) && is_array($_POST['participant_bulk_ids']) ? array_unique(array_map('absint', wp_unslash($_POST['participant_bulk_ids']))) : array();
+		foreach (array_filter($ids) as $participant_id) {
+			$participant = FlzPuParticipant::get_by_id($participant_id);
+			if (!$participant instanceof FlzPuParticipant || $participant->isConfirmed) {
+				continue;
+			}
+			if ('confirm' === $action) {
+				$participant->isConfirmed = true;
+				$participant->activationToken = null;
+				$participant->activationExpiration = null;
+				$participant->activationWarningSentAt = null;
+				$participant->updated_at = current_time('mysql');
+				$participant->save();
+			} elseif ('delete' === $action) {
+				FlzPuRegistrationService::delete($participant);
+			}
+		}
+	}
+
 	if (isset($_POST['participant_save'])) {
 		$participant_save_post = map_deep(wp_unslash($_POST['participant_save']), 'sanitize_text_field');
 		if (!is_array($participant_save_post)) {
@@ -341,6 +375,8 @@ function flzpu_apply_participant_csv_import_plan(array $plan, array $delete_miss
 		$participant->status = $data['status'];
 		$participant->activationExpiration = null;
 		$participant->activationToken = null;
+		$participant->activationWarningSentAt = null;
+		$participant->isConfirmed = true;
 		$participant->created_at = $data['created_at'];
 		$participant->updated_at = $now;
 		$participant->save();

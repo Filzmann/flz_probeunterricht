@@ -35,7 +35,8 @@ final class FlzPuRegistrationService
 					'class'     => (string) $data['class'],
 					'lunch'     => !empty($data['lunch']),
 					'school'    => $school,
-					'status'    => 'pending',
+					'status'    => 'active',
+					'isConfirmed' => false,
 					'created_at'=> $now,
 					'updated_at'=> $now,
 				));

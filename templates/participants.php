@@ -48,6 +48,21 @@ $flzpu_participant_row = static function ( FlzPuParticipant $participant ) use (
 	}
 
 	if ( ! $is_new ) {
+		$selection = ! $participant->isConfirmed
+			? '<input type="checkbox" name="participant_bulk_ids[]" value="' . esc_attr( (string) $participant->id ) . '" form="flzpu-participant-bulk-form" aria-label="Vormerkung markieren" />'
+			: '';
+		if ( ! $participant->isConfirmed ) {
+			$delete_action .= $flzpu_ui->action_form_button(
+				array(
+					'preset' => 'save',
+					'label' => 'Telefonisch bestätigen',
+					'button' => array( 'type' => 'submit', 'icon' => '', 'hide_label' => false, 'confirm' => 'Diese Vormerkung jetzt bestätigen?' ),
+					'method' => 'post',
+					'nonce' => 'flzpu_admin_action',
+					'hidden' => array( 'participant_confirm' => $participant->id ),
+				)
+			);
+		}
 		$delete_action .= $flzpu_ui->action_form_button(
 			array(
 				'preset' => 'delete',
@@ -74,6 +89,7 @@ $flzpu_participant_row = static function ( FlzPuParticipant $participant ) use (
 				),
 			),
 			'cells'      => array(
+				array( 'view_html' => $selection ),
 				array( 'view' => $participant->id ?? 'neu' ),
 				array(
 					'view_html' => $name_view,
@@ -138,7 +154,7 @@ $flzpu_participant_row = static function ( FlzPuParticipant $participant ) use (
 						'unchecked_value' => '0',
 					),
 				),
-				array( 'view' => $participant->status ?? 'neu' ),
+				array( 'view' => $participant->isConfirmed ? 'bestätigt' : 'unbestätigt' ),
 			),
 			'edit'       => array( 'label' => 'Teilnehmer bearbeiten' ),
 			'save'       => array(
@@ -161,9 +177,16 @@ $flzpu_new_participant->school = new FlzPuSchool( array() );
 		<?php echo $flzpu_ui->button_new( array( 'label' => 'Neuen Teilnehmer anlegen', 'attrs' => array( 'data-flz-ui-show-new-row' => 'flzpu-participant-new' ) ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped die Komponente. ?>
 	</p>
 
-	<table class="widefat striped flz-ui-admin-table">
+		<?php echo $flzpu_ui->form_start( array( 'method' => 'post', 'nonce' => 'flzpu_admin_action', 'attrs' => array( 'id' => 'flzpu-participant-bulk-form' ) ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped das Formular. ?>
+			<p>
+				<?php echo $flzpu_ui->button_save( array( 'label' => 'Markierte Vormerkungen bestätigen', 'type' => 'submit', 'confirm' => 'Alle markierten Vormerkungen jetzt bestätigen?', 'attrs' => array( 'name' => 'participant_bulk_action', 'value' => 'confirm' ), 'hide_label' => false ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped den Button. ?>
+				<?php echo $flzpu_ui->button_delete( array( 'label' => 'Markierte Vormerkungen freigeben', 'type' => 'submit', 'confirm' => 'Alle markierten Vormerkungen löschen und Plätze freigeben?', 'attrs' => array( 'name' => 'participant_bulk_action', 'value' => 'delete' ), 'hide_label' => false ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped den Button. ?>
+			</p>
+		<?php echo $flzpu_ui->form_end(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped das Formularende. ?>
+		<table class="widefat striped flz-ui-admin-table">
 		<thead>
 			<tr>
+				<th scope="col">Markieren</th>
 				<th><?php echo $flzpu_participant_sort_link( 'ID', 'id' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Renderer escaped den Sortierlink. ?></th>
 				<th>
 					<div class="flz-ui-table-head">
