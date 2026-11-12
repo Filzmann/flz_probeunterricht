@@ -51,6 +51,7 @@ class FlzPuSchool extends FlzWpdbObject {
 	public string|null $name;
 	public int|null $available_seats;
 	public int|null $capacity;
+	public string|null $record_uuid;
 
 	public function __construct( $data ) {
 		parent::__construct($data['id']??null);
@@ -59,6 +60,7 @@ class FlzPuSchool extends FlzWpdbObject {
 		$this->capacity = isset($data['capacity'])
 			? max(0, (int) $data['capacity'])
 			: max(0, (int) ($data['available_seats'] ?? 0));
+		$this->record_uuid = $data['record_uuid'] ?? null;
 	}
 
 	public static function get_by_name( string $name ): object|null {
@@ -71,15 +73,19 @@ class FlzPuSchool extends FlzWpdbObject {
             name VARCHAR(255) NOT NULL,
             available_seats INT(11) NOT NULL,
 			capacity INT(11) NOT NULL DEFAULT 0,
+			record_uuid char(36) NULL,
+			UNIQUE KEY record_uuid (record_uuid),
             PRIMARY KEY (id)
             )";
 	}
 
 	protected function prepareDataForSaving(): array {
+		$this->record_uuid ??= wp_generate_uuid4();
 		return [
 			'name' => $this->name,
 			'available_seats' => $this->available_seats,
 			'capacity' => $this->capacity,
+			'record_uuid' => $this->record_uuid,
 		];
 	}
 

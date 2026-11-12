@@ -28,15 +28,31 @@ require_once $contract_file;
 
 $schools = FlzPuCsvContract::parse_schools(array(
 	FlzPuCsvContract::school_header(),
-	array('Beispiel-Grundschule', '12'),
+	array('550e8400-e29b-41d4-a716-446655440000', 'Beispiel-Grundschule', '12'),
 ));
 if (12 !== $schools[0]['capacity']) {
 	throw new RuntimeException('Die Schulkapazität geht im CSV-Roundtrip verloren.');
+}
+if ('550e8400-e29b-41d4-a716-446655440000' !== $schools[0]['record_uuid']) { throw new RuntimeException('Die Schul-ID geht verloren.'); }
+$old_schools = FlzPuCsvContract::parse_schools(array(array('Schule', 'Kapazität'), array('Beispiel-Grundschule', '12')));
+if ('' !== $old_schools[0]['record_uuid']) { throw new RuntimeException('Die alte Schul-CSV wird nicht kompatibel gelesen.'); }
+try {
+	FlzPuCsvContract::parse_schools(array(FlzPuCsvContract::school_header(), array('ungueltig', 'Schule', '12')));
+	throw new RuntimeException('Eine ungültige ID wurde akzeptiert.');
+} catch (UnexpectedValueException $error) {
+	if (!str_contains($error->getMessage(), 'Datensatz-ID')) { throw $error; }
+}
+try {
+	FlzPuCsvContract::parse_schools(array(FlzPuCsvContract::school_header(), array('550e8400-e29b-41d4-a716-446655440000', 'Schule A', '12'), array('550e8400-e29b-41d4-a716-446655440000', 'Schule B', '12')));
+	throw new RuntimeException('Eine doppelte ID wurde akzeptiert.');
+} catch (UnexpectedValueException $error) {
+	if (!str_contains($error->getMessage(), 'doppelt')) { throw $error; }
 }
 
 $participants = FlzPuCsvContract::parse_participants(array(
 	FlzPuCsvContract::participant_header(),
 	array(
+		'550e8400-e29b-41d4-a716-446655440001',
 		'Beispiel',
 		'Mia',
 		'6a',
@@ -45,15 +61,70 @@ $participants = FlzPuCsvContract::parse_participants(array(
 		'1',
 		'active',
 		'2026-08-01 10:00:00',
+		'0',
 	),
 ));
 if ('mia@example.test' !== $participants[0]['email'] || true !== $participants[0]['lunch']) {
 	throw new RuntimeException('Der Teilnehmenden-CSV-Roundtrip verliert fachliche Werte.');
 }
+if (false !== ($participants[0]['isConfirmed'] ?? null)) {
+	throw new RuntimeException('Eine unbestätigte Anmeldung wird beim CSV-Import nicht als unbestätigt erhalten.');
+}
+$confirmed_row = array('550e8400-e29b-41d4-a716-446655440001', 'Beispiel', 'Mia', '6a', 'mia@example.test', 'Beispiel-Grundschule', '1', 'active', '2026-08-01 10:00:00', '1');
+if (true !== FlzPuCsvContract::parse_participants(array(FlzPuCsvContract::participant_header(), $confirmed_row))[0]['isConfirmed']) {
+	throw new RuntimeException('Eine bestätigte Anmeldung verliert ihren Bestätigungszustand.');
+}
+$invalid_confirmation = $confirmed_row;
+$invalid_confirmation[9] = 'vielleicht';
+try {
+	FlzPuCsvContract::parse_participants(array(FlzPuCsvContract::participant_header(), $invalid_confirmation));
+	throw new RuntimeException('Ein ungültiger Bestätigungswert wurde akzeptiert.');
+} catch (UnexpectedValueException $error) {
+	if (!str_contains($error->getMessage(), 'Bestätigt')) { throw $error; }
+}
+$old_participant = FlzPuCsvContract::parse_participants(array(
+	array('Nachname', 'Vorname', 'Klasse', 'E-Mail Eltern', 'Grundschule', 'Mittagessen', 'Status', 'Anmeldedatum'),
+	array('Beispiel', 'Mia', '6a', 'mia@example.test', 'Beispiel-Grundschule', '1', 'active', '2026-08-01 10:00:00'),
+));
+if (!array_key_exists('isConfirmed', $old_participant[0]) || null !== $old_participant[0]['isConfirmed']) {
+	throw new RuntimeException('Ein altes CSV ohne Bestätigungsinformation muss den Zustand als unbekannt kennzeichnen.');
+}
+$previous_uuid_row = array_slice($confirmed_row, 0, -1);
+$previous_uuid = FlzPuCsvContract::parse_participants(array(array_slice(FlzPuCsvContract::participant_header(), 0, -1), $previous_uuid_row));
+if ($previous_uuid[0]['record_uuid'] !== $confirmed_row[0] || null !== $previous_uuid[0]['isConfirmed']) {
+	throw new RuntimeException('Eine UUID-CSV ohne Bestätigungsfeld wird nicht kompatibel gelesen.');
+}
+$versioned_header = array('format_version', 'record_type', 'last_name', 'first_name', 'class', 'email', 'school_name', 'lunch', 'status', 'created_at');
+$versioned_row = array('flz_probeunterricht_v1', 'participant', 'Beispiel', 'Mia', '6a', 'mia@example.test', 'Beispiel-Grundschule', '1', 'pending', '2026-08-01 10:00:00');
+if (null !== FlzPuCsvContract::parse_participants(array($versioned_header, $versioned_row))[0]['isConfirmed']) {
+	throw new RuntimeException('Ein versionierter Altimport erfindet einen Bestätigungszustand.');
+}
+$old_confirm_header = array('Nachname', 'Vorname', 'Klasse', 'E-Mail Eltern', 'Grundschule', 'Mittagessen', 'isConfirmed', 'Status', 'Anmeldedatum');
+foreach (array('ja' => true, 'Nein' => false, 'TRUE' => true, 'false' => false, '1' => true, '0' => false) as $value => $expected) {
+	$row = array('Beispiel', 'Mia', '6a', 'mia@example.test', 'Beispiel-Grundschule', '1', (string) $value, 'active', '2026-08-01 10:00:00');
+	if ($expected !== FlzPuCsvContract::parse_participants(array($old_confirm_header, $row))[0]['isConfirmed']) {
+		throw new RuntimeException('Ein historischer Bestätigungswert wurde nicht korrekt erkannt: ' . $value);
+	}
+}
+$versioned_with_confirmation = $versioned_header;
+$versioned_with_confirmation[] = 'is_confirmed';
+$versioned_confirm_row = $versioned_row;
+$versioned_confirm_row[] = '0';
+if (false !== FlzPuCsvContract::parse_participants(array($versioned_with_confirmation, $versioned_confirm_row))[0]['isConfirmed']) {
+	throw new RuntimeException('Die Bestätigungsspalte des versionierten Altformats ging verloren.');
+}
+$duplicate_header = $old_confirm_header;
+$duplicate_header[] = 'Bestätigt';
+try {
+	FlzPuCsvContract::parse_participants(array($duplicate_header, array_merge($row, array('1'))));
+	throw new RuntimeException('Mehrdeutige Bestätigungsspalten wurden akzeptiert.');
+} catch (UnexpectedValueException $error) {
+	if (!str_contains($error->getMessage(), 'Bestätigungs')) { throw $error; }
+}
 
 $invalid = array(
 	FlzPuCsvContract::participant_header(),
-	array('Beispiel', 'Mia', '6a', 'keine-mail', 'Schule', '0', 'pending', '2026-08-01 10:00:00'),
+	array('550e8400-e29b-41d4-a716-446655440001', 'Beispiel', 'Mia', '6a', 'keine-mail', 'Schule', '0', 'pending', '2026-08-01 10:00:00', '0'),
 );
 try {
 	FlzPuCsvContract::parse_participants($invalid);
@@ -64,7 +135,7 @@ try {
 
 $cancelled = array(
 	FlzPuCsvContract::participant_header(),
-	array('Beispiel', 'Mia', '6a', 'mia@example.test', 'Schule', '0', 'cancelled', '2026-08-01 10:00:00'),
+	array('550e8400-e29b-41d4-a716-446655440001', 'Beispiel', 'Mia', '6a', 'mia@example.test', 'Schule', '0', 'cancelled', '2026-08-01 10:00:00', '0'),
 );
 try {
 	FlzPuCsvContract::parse_participants($cancelled);

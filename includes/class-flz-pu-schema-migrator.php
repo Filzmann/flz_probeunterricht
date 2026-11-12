@@ -17,6 +17,9 @@ final class FlzPuSchemaMigrator
 			return;
 		}
 
+		if (version_compare($current_version, '2.3.0', '<')) {
+			self::add_record_uuids();
+		}
 		FlzPuSchool::create_table();
 		FlzPuParticipant::create_table();
 		FlzPuSetting::create_table();
@@ -27,7 +30,29 @@ final class FlzPuSchemaMigrator
 		if (version_compare($current_version, '2.1.0', '<')) {
 			self::backfill_school_capacity();
 		}
+		if (version_compare($current_version, '2.3.0', '<')) {
+			self::add_record_uuids();
+		}
 		update_option('flzpu_db_version', FLZPU_DB_VERSION, false);
+	}
+
+	private static function add_record_uuids(): void
+	{
+		global $wpdb;
+		foreach (array(self::identifier($wpdb->prefix . 'flz_pu_schools'), self::identifier($wpdb->prefix . 'flz_pu_participants')) as $table) {
+			if (!self::table_exists($table)) {
+				continue;
+			}
+			if (null === $wpdb->get_var($wpdb->prepare('SHOW COLUMNS FROM %i LIKE %s', $table, 'record_uuid'))) {
+				if (false === $wpdb->query($wpdb->prepare('ALTER TABLE %i ADD record_uuid char(36) NULL', $table))) { throw new RuntimeException('Die portable Datensatz-ID konnte nicht ergänzt werden.'); }
+			}
+			$rows = $wpdb->get_results($wpdb->prepare("SELECT id FROM %i WHERE record_uuid IS NULL OR record_uuid = '' ORDER BY id ASC", $table));
+			if (!is_array($rows)) { throw new RuntimeException('Datensätze für die UUID-Migration konnten nicht gelesen werden.'); }
+			foreach ($rows as $row) {
+				if (false === $wpdb->query($wpdb->prepare("UPDATE %i SET record_uuid = %s WHERE id = %d AND (record_uuid IS NULL OR record_uuid = '')", $table, wp_generate_uuid4(), (int) $row->id))) { throw new RuntimeException('Eine portable Datensatz-ID konnte nicht gespeichert werden.'); }
+			}
+			if (null === $wpdb->get_var($wpdb->prepare('SHOW INDEX FROM %i WHERE Key_name = %s', $table, 'record_uuid')) && false === $wpdb->query($wpdb->prepare('ALTER TABLE %i ADD UNIQUE KEY record_uuid (record_uuid)', $table))) { throw new RuntimeException('Die portable Datensatz-ID konnte nicht eindeutig abgesichert werden.'); }
+		}
 	}
 
 	private static function migrate_legacy_tables(): void
