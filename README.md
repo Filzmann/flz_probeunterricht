@@ -56,6 +56,28 @@ Upload-Verzeichnis. Vor dem schreibenden Import muss dieselbe unveränderte
 Datei innerhalb des vorgesehenen Prüffensters erfolgreich als Dry-Run geprüft
 werden.
 
+Schulen und Teilnehmende erhalten eine dauerhafte `Datensatz-ID` (UUID), die
+beim Import vorrangig zur Zuordnung verwendet wird und unverändert bleiben soll.
+Ältere Exporte ohne ID bleiben über den bisherigen fachlichen Abgleich lesbar.
+Widersprüchliche oder doppelte IDs werden ohne Import abgewiesen.
+
+Die Spalte `Bestätigt` hält den Bestätigungszustand unabhängig vom fachlichen
+Status fest (`1` bestätigt, `0` unbestätigt). Ältere CSV-Dateien ohne diese
+Spalte enthalten keinen zuverlässigen Bestätigungsnachweis: Beim Import bleibt
+der Zustand vorhandener Datensätze erhalten, neue Datensätze bleiben
+unbestätigt. Neue unbestätigte Importe erhalten keinen Bestätigungslink oder
+Ablaufzeitpunkt und können bei Bedarf in der Verwaltung bestätigt werden.
+Bestehende gültige Links unbestätigter Datensätze bleiben beim erneuten Import
+erhalten; Tokens werden nie exportiert.
+
+In den unterstützten älteren Kopfzeilen darf die Bestätigungsspalte an jeder
+Position stehen. Erkannt werden `Bestätigt`, `Bestätigung`, `isConfirmed`,
+`confirmed` und `confirmation`, unabhängig von Groß-/Kleinschreibung und mit
+Leerzeichen, Unterstrichen oder Bindestrichen. Als Werte gelten `1`, `true`,
+`yes`, `ja`, `bestätigt`, `confirmed` beziehungsweise `0`, `false`, `no`,
+`nein`, `unbestätigt`, `unconfirmed`. Leere oder unbekannte Werte sowie mehrere
+Bestätigungsspalten führen zu einer Ablehnung der Datei.
+
 Der Teilnehmerimport ist ein vollständiger Snapshot: Schulreferenzen und
 Kapazitäten müssen vollständig konsistent sein. Der Status `cancelled` ist kein
 Importstatus; eine Abmeldung löscht den Datensatz und gibt den Platz frei.

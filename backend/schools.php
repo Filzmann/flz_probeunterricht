@@ -173,7 +173,7 @@ function flzpu_process_schools_csv_file(): ?array
 				foreach ($plan as $item) {
 					$school = $item['school'] instanceof FlzPuSchool
 						? FlzPuSchool::get_by_id_for_update((int) $item['school']->id)
-						: new FlzPuSchool(array('name' => $item['name']));
+						: new FlzPuSchool(array('name' => $item['name'], 'record_uuid' => $item['record_uuid'] ?: null));
 					if (!$school instanceof FlzPuSchool) {
 						throw new UnexpectedValueException('Eine zu importierende Grundschule wurde nicht gefunden.');
 					}
@@ -205,7 +205,12 @@ function flzpu_plan_school_csv_import(array $rows): array
 {
 	$plan = array();
 	foreach ($rows as $row) {
-		$school = FlzPuSchool::get_by_name($row['name']);
+		$uuid = $row['record_uuid'] ?? '';
+		$school = $uuid !== '' ? FlzPuSchool::get_by_fields(array('record_uuid' => $uuid)) : FlzPuSchool::get_by_name($row['name']);
+		$school_by_name = FlzPuSchool::get_by_name($row['name']);
+		if ($uuid !== '' && $school_by_name instanceof FlzPuSchool && (!$school instanceof FlzPuSchool || $school_by_name->id !== $school->id)) {
+			throw new UnexpectedValueException('Die Datensatz-ID widerspricht einer vorhandenen Grundschule mit demselben Namen.');
+		}
 		$participants = $school instanceof FlzPuSchool
 			? FlzPuParticipant::count_by(array('school_id' => (int) $school->id))
 			: 0;
@@ -214,6 +219,7 @@ function flzpu_plan_school_csv_import(array $rows): array
 		}
 		$plan[] = array(
 			'name' => $row['name'],
+			'record_uuid' => $uuid,
 			'capacity' => $row['capacity'],
 			'participants' => $participants,
 			'school' => $school,
@@ -229,6 +235,7 @@ function flzpu_school_csv_proof_hash(array $rows): string
 	$current = array_map(
 		static fn(FlzPuSchool $school): array => array(
 			'id' => (int) $school->id,
+			'record_uuid' => (string) $school->record_uuid,
 			'name' => (string) $school->name,
 			'capacity' => (int) $school->capacity,
 			'available' => (int) $school->available_seats,

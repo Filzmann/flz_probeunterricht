@@ -176,7 +176,8 @@ function flzpu_process_participants_csv_file(): ?array
 
 			return array(
 				'type' => 'success',
-				'message' => sprintf('Dry-Run erfolgreich: %d Teilnehmende werden aktualisiert, %d neu angelegt. %d nicht in der CSV enthaltene Teilnehmende sind zur Einzelauswahl markiert.', $plan['updated'], $plan['created'], count($plan['missing_participants'])),
+				'message' => sprintf('Dry-Run erfolgreich: %d Teilnehmende werden aktualisiert, %d neu angelegt. %d nicht in der CSV enthaltene Teilnehmende sind zur Einzelauswahl markiert.', $plan['updated'], $plan['created'], count($plan['missing_participants']))
+					. (array_filter($rows, static fn(array $row): bool => null === $row['isConfirmed']) ? ' Die Datei enthält keinen Bestätigungszustand: Bestehende Zustände bleiben erhalten; neue Datensätze werden unbestätigt und ohne Bestätigungslink angelegt.' : ''),
 				'missing_participants' => array_map(
 					static fn(FlzPuParticipant $participant): array => array(
 						'id' => (int) $participant->id,
@@ -232,7 +233,9 @@ function flzpu_plan_participant_csv_import(array $rows): array
 	$counts = array();
 	$participants = array();
 	$existing_by_identity = array();
+	$existing_by_uuid = array();
 	foreach (FlzPuParticipant::get_all_by(order_by: 'id') as $participant) {
+		if (!empty($participant->record_uuid)) { $existing_by_uuid[$participant->record_uuid] = $participant; }
 		$key = flzpu_participant_csv_identity_key($participant);
 		if (isset($existing_by_identity[$key])) {
 			throw new UnexpectedValueException('Die vorhandenen Teilnehmendendaten enthalten einen doppelten CSV-Abgleichsschlüssel.');
@@ -250,8 +253,15 @@ function flzpu_plan_participant_csv_import(array $rows): array
 			throw new UnexpectedValueException('Die CSV überschreitet die Kapazität der Grundschule „' . $school->name . '“.');
 		}
 		$key = flzpu_participant_csv_identity_key($row);
-		$existing = $existing_by_identity[$key] ?? null;
-		unset($existing_by_identity[$key]);
+		$uuid = $row['record_uuid'] ?? '';
+		$existing = $uuid !== '' ? ($existing_by_uuid[$uuid] ?? null) : ($existing_by_identity[$key] ?? null);
+		if ($uuid !== '' && isset($existing_by_identity[$key]) && $existing_by_identity[$key] !== $existing) {
+			throw new UnexpectedValueException('Die Datensatz-ID widerspricht einem vorhandenen Teilnehmendendatensatz.');
+		}
+		if ($existing instanceof FlzPuParticipant) {
+			unset($existing_by_identity[flzpu_participant_csv_identity_key($existing)]);
+			unset($existing_by_uuid[(string) $existing->record_uuid]);
+		}
 		$participants[] = array('data' => $row, 'school' => $school, 'existing' => $existing);
 	}
 
@@ -373,12 +383,20 @@ function flzpu_apply_participant_csv_import_plan(array $plan, array $delete_miss
 		$participant->school = $school;
 		$participant->lunch = $data['lunch'];
 		$participant->status = $data['status'];
-		$participant->activationExpiration = null;
-		$participant->activationToken = null;
-		$participant->activationWarningSentAt = null;
-		$participant->isConfirmed = true;
+		$confirmed = $data['isConfirmed'] ?? null;
+		if (null === $confirmed && !$item['existing'] instanceof FlzPuParticipant) {
+			$participant->isConfirmed = false;
+		} elseif (null !== $confirmed) {
+			if ($confirmed || $participant->isConfirmed) {
+				$participant->activationExpiration = null;
+				$participant->activationToken = null;
+				$participant->activationWarningSentAt = null;
+			}
+			$participant->isConfirmed = $confirmed;
+		}
 		$participant->created_at = $data['created_at'];
 		$participant->updated_at = $now;
+		if (!empty($data['record_uuid'])) { $participant->record_uuid = $data['record_uuid']; }
 		$participant->save();
 	}
 	$school_counts = $plan['school_counts'];
@@ -400,6 +418,7 @@ function flzpu_participant_csv_proof_hash(array $rows): string
 	$current = array_map(
 		static fn(FlzPuParticipant $participant): array => array(
 			'id' => (int) $participant->id,
+			'record_uuid' => (string) $participant->record_uuid,
 			'school_id' => (int) ($participant->school?->id ?? 0),
 			'name' => (string) $participant->name,
 			'firstName' => (string) $participant->firstName,
@@ -407,6 +426,10 @@ function flzpu_participant_csv_proof_hash(array $rows): string
 			'email' => (string) $participant->email,
 			'lunch' => (bool) $participant->lunch,
 			'status' => (string) $participant->status,
+			'isConfirmed' => (bool) $participant->isConfirmed,
+			'activationExpiration' => (string) $participant->activationExpiration,
+			'activationToken' => (string) $participant->activationToken,
+			'activationWarningSentAt' => (string) $participant->activationWarningSentAt,
 			'created_at' => (string) $participant->created_at,
 		),
 		FlzPuParticipant::get_all_by(order_by: 'id')

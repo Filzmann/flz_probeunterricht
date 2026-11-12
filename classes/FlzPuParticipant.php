@@ -16,6 +16,7 @@ class FlzPuParticipant extends FlzPerson{
 	public bool $isConfirmed;
 	public string|null $created_at;
 	public string|null $updated_at;
+	public string|null $record_uuid;
 
 	public function __construct(array $data	) {
 		parent::__construct($data);
@@ -29,8 +30,10 @@ class FlzPuParticipant extends FlzPerson{
 		$this->isConfirmed = isset($data['isConfirmed']) ? (bool) $data['isConfirmed'] : true;
 		$this->created_at           = $data['created_at'] ?? null;
 		$this->updated_at           = $data['updated_at'] ?? null;
+		$this->record_uuid = $data['record_uuid'] ?? null;
 	}
 	protected function prepareDataForSaving(): array {
+		$this->record_uuid ??= wp_generate_uuid4();
 		return [
 			'name' => $this->name,
 			'firstName' => $this->firstName,
@@ -45,6 +48,7 @@ class FlzPuParticipant extends FlzPerson{
 			'isConfirmed' => $this->isConfirmed ? 1 : 0,
 			'created_at' => $this->created_at,
 			'updated_at' => $this->updated_at,
+			'record_uuid' => $this->record_uuid,
 		];
 	}
 
@@ -64,7 +68,9 @@ class FlzPuParticipant extends FlzPerson{
 	        isConfirmed tinyint(1) NOT NULL DEFAULT 1,
 	        created_at DATETIME NULL,
 	        updated_at DATETIME NULL,
-	        PRIMARY KEY (id)
+			record_uuid char(36) NULL,
+	        PRIMARY KEY (id),
+			UNIQUE KEY record_uuid (record_uuid)
         )
         ";
 	}

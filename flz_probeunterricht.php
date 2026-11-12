@@ -14,7 +14,7 @@ Requires PHP: 8.1
 defined( 'ABSPATH' ) || exit;
 
 const FLZPU_VERSION = '1.1.3';
-const FLZPU_DB_VERSION = '2.2.0';
+const FLZPU_DB_VERSION = '2.3.0';
 const FLZPU_MIN_WPDB_OBJECTS_VERSION = '2.1.0';
 const FLZPU_MIN_UI_COMPONENTS_VERSION = '0.1.11';
 
